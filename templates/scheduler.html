@@ -1,0 +1,202 @@
+{% extends "base.html" %}
+
+{% block title %}Настройки планировщика - Админка Telegram-бота{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1 class="display-4 mb-4">Настройки планировщика</h1>
+        <p class="lead">Управление задачами, которые выполняются по расписанию</p>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card shadow">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">Настройки задач</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('update_scheduler_settings') }}">
+                    {% for setting in scheduler_settings %}
+                    <div class="card mb-3">
+                        <div class="card-body">
+                            <h5 class="card-title">{{ setting.job_name }}</h5>
+                            <p class="card-text">{{ setting.description or "Нет описания" }}</p>
+                            
+                            <div class="form-check form-switch mb-3">
+                                <input class="form-check-input" type="checkbox" id="enabled_{{ setting.id }}" 
+                                       name="enabled_{{ setting.id }}" {% if setting.is_enabled %}checked{% endif %}>
+                                <label class="form-check-label" for="enabled_{{ setting.id }}">Включено</label>
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <label for="interval_type_{{ setting.id }}" class="form-label">Тип интервала</label>
+                                    <select class="form-select" id="interval_type_{{ setting.id }}" name="interval_type_{{ setting.id }}" 
+                                            {% if not setting.is_enabled %}disabled{% endif %}>
+                                        <option value="minutely" {% if setting.interval_type == 'minutely' %}selected{% endif %}>Ежеминутно</option>
+                                        <option value="hourly" {% if setting.interval_type == 'hourly' %}selected{% endif %}>Ежечасно</option>
+                                        <option value="daily" {% if setting.interval_type == 'daily' %}selected{% endif %}>Ежедневно</option>
+                                        <option value="weekly" {% if setting.interval_type == 'weekly' %}selected{% endif %}>Еженедельно</option>
+                                        <option value="monthly" {% if setting.interval_type == 'monthly' %}selected{% endif %}>Ежемесячно</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="interval_value_{{ setting.id }}" class="form-label">Интервал (значение)</label>
+                                    <input type="number" class="form-control" id="interval_value_{{ setting.id }}" 
+                                           name="interval_value_{{ setting.id }}" min="1" max="1440" 
+                                           value="{{ setting.interval_value or '1' }}" {% if not setting.is_enabled %}disabled{% endif %}>
+                                </div>
+                            </div>
+                            
+                            <div class="row mt-3" id="time_settings_{{ setting.id }}" style="display: {% if setting.interval_type == 'minutely' or setting.interval_type == 'hourly' %}none{% else %}flex{% endif %};">
+                                <div class="col-md-6">
+                                    <label for="hour_{{ setting.id }}" class="form-label">Час</label>
+                                    <input type="number" class="form-control" id="hour_{{ setting.id }}" 
+                                           name="hour_{{ setting.id }}" min="0" max="23" 
+                                           value="{{ setting.hour or '' }}" {% if not setting.is_enabled %}disabled{% endif %}>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="minute_{{ setting.id }}" class="form-label">Минута</label>
+                                    <input type="number" class="form-control" id="minute_{{ setting.id }}" 
+                                           name="minute_{{ setting.id }}" min="0" max="59" 
+                                           value="{{ setting.minute or '' }}" {% if not setting.is_enabled %}disabled{% endif %}>
+                                </div>
+                            </div>
+                            
+                            <div class="row mt-3" id="weekly_settings_{{ setting.id }}" style="display: {% if setting.interval_type == 'weekly' %}flex{% else %}none{% endif %};">
+                                <div class="col-md-12">
+                                    <label class="form-label">День недели</label>
+                                    <div>
+                                        {% set days = ['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота', 'Воскресенье'] %}
+                                        {% for i in range(7) %}
+                                        <div class="form-check form-check-inline">
+                                            <input class="form-check-input" type="checkbox" id="day_{{ setting.id }}_{{ i }}" 
+                                                   name="days_{{ setting.id }}" value="{{ i }}"
+                                                   {% if setting.day_of_week and i|string in setting.day_of_week.split(',') %}checked{% endif %}
+                                                   {% if not setting.is_enabled %}disabled{% endif %}>
+                                            <label class="form-check-label" for="day_{{ setting.id }}_{{ i }}">{{ days[i] }}</label>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="row mt-3" id="monthly_settings_{{ setting.id }}" style="display: {% if setting.interval_type == 'monthly' %}flex{% else %}none{% endif %};">
+                                <div class="col-md-12">
+                                    <label for="day_of_month_{{ setting.id }}" class="form-label">День месяца</label>
+                                    <input type="number" class="form-control" id="day_of_month_{{ setting.id }}" 
+                                           name="day_of_month_{{ setting.id }}" min="1" max="31" 
+                                           value="{{ setting.day_of_month or '' }}" {% if not setting.is_enabled %}disabled{% endif %}>
+                                </div>
+                            </div>
+                            
+                            <div class="row mt-3">
+                                <div class="col-md-12">
+                                    <label for="target_groups_{{ setting.id }}" class="form-label">ID групп для отправки (через запятую)</label>
+                                    <input type="text" class="form-control" id="target_groups_{{ setting.id }}" 
+                                           name="target_groups_{{ setting.id }}" 
+                                           value="{{ setting.target_groups or '' }}" 
+                                           placeholder="Оставьте пустым для отправки во все группы">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                    
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <button type="submit" class="btn btn-primary">Сохранить изменения</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Включаем/отключаем поля ввода при изменении чекбокса
+    document.querySelectorAll('.form-check-input').forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            const settingId = this.id.split('_')[1];
+            const hourInput = document.getElementById(`hour_${settingId}`);
+            const minuteInput = document.getElementById(`minute_${settingId}`);
+            const intervalTypeSelect = document.getElementById(`interval_type_${settingId}`);
+            const intervalValueInput = document.getElementById(`interval_value_${settingId}`);
+            const dayOfMonthInput = document.getElementById(`day_of_month_${settingId}`);
+            const timeSettings = document.getElementById(`time_settings_${settingId}`);
+            const weeklySettings = document.getElementById(`weekly_settings_${settingId}`);
+            const monthlySettings = document.getElementById(`monthly_settings_${settingId}`);
+            
+            if (this.checked) {
+                hourInput.disabled = false;
+                minuteInput.disabled = false;
+                intervalTypeSelect.disabled = false;
+                intervalValueInput.disabled = false;
+                dayOfMonthInput.disabled = false;
+                
+                // Включаем чекбоксы дней недели
+                const dayCheckboxes = document.querySelectorAll(`input[name="days_${settingId}"]`);
+                dayCheckboxes.forEach(cb => cb.disabled = false);
+                
+                // Показываем настройки в зависимости от типа интервала
+                if (intervalTypeSelect.value === 'weekly') {
+                    timeSettings.style.display = 'flex';
+                    weeklySettings.style.display = 'flex';
+                    monthlySettings.style.display = 'none';
+                } else if (intervalTypeSelect.value === 'monthly') {
+                    timeSettings.style.display = 'flex';
+                    weeklySettings.style.display = 'none';
+                    monthlySettings.style.display = 'flex';
+                } else if (intervalTypeSelect.value === 'minutely' || intervalTypeSelect.value === 'hourly') {
+                    timeSettings.style.display = 'none';
+                    weeklySettings.style.display = 'none';
+                    monthlySettings.style.display = 'none';
+                } else {
+                    timeSettings.style.display = 'flex';
+                    weeklySettings.style.display = 'none';
+                    monthlySettings.style.display = 'none';
+                }
+            } else {
+                hourInput.disabled = true;
+                minuteInput.disabled = true;
+                intervalTypeSelect.disabled = true;
+                intervalValueInput.disabled = true;
+                dayOfMonthInput.disabled = true;
+                
+                // Отключаем чекбоксы дней недели
+                const dayCheckboxes = document.querySelectorAll(`input[name="days_${settingId}"]`);
+                dayCheckboxes.forEach(cb => cb.disabled = true);
+            }
+        });
+    });
+    
+    // Показываем/скрываем настройки в зависимости от типа интервала
+    document.querySelectorAll('select[id^="interval_type_"]').forEach(select => {
+        select.addEventListener('change', function() {
+            const settingId = this.id.split('_')[2];
+            const timeSettings = document.getElementById(`time_settings_${settingId}`);
+            const weeklySettings = document.getElementById(`weekly_settings_${settingId}`);
+            const monthlySettings = document.getElementById(`monthly_settings_${settingId}`);
+            
+            if (this.value === 'weekly') {
+                timeSettings.style.display = 'flex';
+                weeklySettings.style.display = 'flex';
+                monthlySettings.style.display = 'none';
+            } else if (this.value === 'monthly') {
+                timeSettings.style.display = 'flex';
+                weeklySettings.style.display = 'none';
+                monthlySettings.style.display = 'flex';
+            } else if (this.value === 'minutely' || this.value === 'hourly') {
+                timeSettings.style.display = 'none';
+                weeklySettings.style.display = 'none';
+                monthlySettings.style.display = 'none';
+            } else {
+                timeSettings.style.display = 'flex';
+                weeklySettings.style.display = 'none';
+                monthlySettings.style.display = 'none';
+            }
+        });
+    });
+</script>
+{% endblock %}

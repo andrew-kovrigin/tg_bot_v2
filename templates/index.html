@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+
+{% block title %}Главная - Админка Telegram-бота{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Заголовок -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="display-4">Панель управления Telegram-ботом</h1>
+            <p class="lead">Управление группами, администраторами и запросами пользователей</p>
+        </div>
+    </div>
+
+    <!-- Карточки статистики -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card text-white bg-primary h-100 shadow">
+                <div class="card-header">Группы</div>
+                <div class="card-body d-flex flex-column">
+                    <h5 class="card-title display-4">{{ group_count }}</h5>
+                    <p class="card-text">Активных групп</p>
+                    <a href="{{ url_for('groups') }}" class="btn btn-light mt-auto">Подробнее</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card text-white bg-success h-100 shadow">
+                <div class="card-header">Администраторы</div>
+                <div class="card-body d-flex flex-column">
+                    <h5 class="card-title display-4">{{ admin_count }}</h5>
+                    <p class="card-text">Зарегистрировано</p>
+                    <a href="{{ url_for('admins') }}" class="btn btn-light mt-auto">Подробнее</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card text-white bg-warning h-100 shadow">
+                <div class="card-header">Запросы</div>
+                <div class="card-body d-flex flex-column">
+                    <h5 class="card-title display-4">{{ request_count }}</h5>
+                    <p class="card-text">Последние запросы</p>
+                    <a href="{{ url_for('requests') }}" class="btn btn-light mt-auto">Подробнее</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Последние запросы и графики -->
+    <div class="row">
+        <!-- Последние запросы -->
+        <div class="col-lg-8">
+            <div class="card shadow">
+                <div class="card-header bg-white">
+                    <h5 class="card-title mb-0">Последние запросы пользователей</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>ID пользователя</th>
+                                    <th>Имя пользователя</th>
+                                    <th>Группа</th>
+                                    <th>Сообщение</th>
+                                    <th>Дата</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for req in recent_requests %}
+                                <tr>
+                                    <td>{{ req.user_id or 'N/A' }}</td>
+                                    <td>{{ req.username or 'N/A' }}</td>
+                                    <td>{{ req.group_id or 'N/A' }}</td>
+                                    <td>{% if req.message_text %}{{ req.message_text[:50] }}{% if req.message_text|length > 50 %}...{% endif %}{% else %}N/A{% endif %}</td>
+                                    <td>{% if req.created_at %}{{ req.created_at.strftime('%d.%m.%Y %H:%M') }}{% else %}N/A{% endif %}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Графики -->
+        <div class="col-lg-4">
+            <div class="card shadow mb-4">
+                <div class="card-header bg-white">
+                    <h5 class="card-title mb-0">Статистика</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex justify-content-center align-items-center" style="height: 200px;">
+                        <div class="text-center">
+                            <div class="display-1 text-primary">📊</div>
+                            <p class="mt-2">Графики и диаграммы</p>
+                            <small class="text-muted">Будут добавлены в следующих обновлениях</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Быстрые действия -->
+            <div class="card shadow">
+                <div class="card-header bg-white">
+                    <h5 class="card-title mb-0">Быстрые действия</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <a href="{{ url_for('groups') }}" class="btn btn-primary">Управление группами</a>
+                        <a href="{{ url_for('admins') }}" class="btn btn-success">Управление админами</a>
+                        <a href="{{ url_for('requests') }}" class="btn btn-warning">Просмотр запросов</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

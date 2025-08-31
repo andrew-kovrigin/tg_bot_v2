@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+
+{% block title %}Запросы - Админка Telegram-бота{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Заголовок -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="display-4">Запросы пользователей</h1>
+            <p class="lead">Управление запросами и обратной связью от пользователей</p>
+        </div>
+    </div>
+
+    <!-- Список запросов -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">Список запросов пользователей</h5>
+                    <span class="badge bg-secondary">{{ requests|length }} запросов</span>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Выполнено</th>
+                                    <th>ID пользователя</th>
+                                    <th>Имя пользователя</th>
+                                    <th>Группа</th>
+                                    <th>Сообщение</th>
+                                    <th>Дата</th>
+                                    <th>Комментарий к выполнению</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for req in requests %}
+                                <tr>
+                                    <td>
+                                        <form method="POST" action="{{ url_for('mark_request_completed', request_id=req.id) }}" style="display:inline;">
+                                            <div class="input-group">
+                                                {% if not req.is_completed %}
+                                                    <input type="text" class="form-control form-control-sm" name="completion_comment" placeholder="Комментарий">
+                                                {% endif %}
+                                                <button type="submit" class="btn btn-sm {% if req.is_completed %}btn-success{% else %}btn-outline-secondary{% endif %}">
+                                                    {% if req.is_completed %}✓{% else %}✗{% endif %}
+                                                </button>
+                                            </div>
+                                        </form>
+                                    </td>
+                                    <td>{{ req.user_id }}</td>
+                                    <td>{{ req.username or 'N/A' }}</td>
+                                    <td>{{ req.group_id or 'N/A' }}</td>
+                                    <td>{{ req.message_text }}</td>
+                                    <td>{{ req.created_at.strftime('%d.%m.%Y %H:%M') }}</td>
+                                    <td>
+                                        {% if req.is_completed and req.completion_comment %}
+                                            {{ req.completion_comment }}
+                                        {% elif req.is_completed %}
+                                            Без комментария
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
