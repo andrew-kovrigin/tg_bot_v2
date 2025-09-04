@@ -1,146 +1,393 @@
 {% extends "base.html" %}
 
-{% block title %}Группы - Админка Telegram-бота{% endblock %}
-
 {% block content %}
-<div class="container-fluid">
-    <!-- Заголовок -->
-    <div class="row mb-4">
-        <div class="col-12">
-            <h1 class="display-4">Управление группами</h1>
-            <p class="lead">Добавление, удаление и управление группами Telegram</p>
-        </div>
-    </div>
+<div class="page-header">
+    <h1><i class="bi bi-telegram"></i> Управление группами</h1>
+    <p class="text-muted">Добавление, редактирование и удаление Telegram групп для отправки уведомлений.</p>
+</div>
 
-    <!-- Форма добавления группы -->
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="card shadow">
-                <div class="card-header bg-white">
-                    <h5 class="card-title mb-0">Добавить новую группу</h5>
-                </div>
-                <div class="card-body">
-                    <form method="POST" action="{{ url_for('add_group') }}">
-                        <div class="row">
-                            <div class="col-md-3 mb-3">
-                                <label for="group_id" class="form-label">ID группы</label>
-                                <input type="text" class="form-control" id="group_id" name="group_id" placeholder="ID группы" required>
-                            </div>
-                            <div class="col-md-3 mb-3">
-                                <label for="group_name" class="form-label">Название группы</label>
-                                <input type="text" class="form-control" id="group_name" name="group_name" placeholder="Название группы">
-                            </div>
-                            <div class="col-md-4 mb-3">
-                                <label for="address" class="form-label">Адрес для отключений</label>
-                                <input type="text" class="form-control" id="address" name="address" placeholder="Адрес">
-                            </div>
-                            <div class="col-md-2 mb-3 d-flex align-items-end">
-                                <button type="submit" class="btn btn-primary w-100">Добавить группу</button>
-                            </div>
-                        </div>
-                    </form>
+<div class="row">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <i class="bi bi-list"></i> Список групп
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-striped" id="groups-table">
+                        <thead>
+                            <tr>
+                                <th>ID записи</th>
+                                <th>ID группы в Telegram</th>
+                                <th>Название</th>
+                                <th>Адреса</th>
+                                <th>Активна</th>
+                                <th>Действия</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Данные будут загружены через AJAX -->
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
     </div>
-
-    <!-- Список групп -->
-    <div class="row">
-        <div class="col-12">
-            <div class="card shadow">
-                <div class="card-header bg-white d-flex justify-content-between align-items-center">
-                    <h5 class="card-title mb-0">Список групп</h5>
-                    <span class="badge bg-secondary">{{ groups|length }} групп</span>
-                </div>
-                <div class="card-body">
-                    <div class="table-responsive">
-                        <table class="table table-hover">
-                            <thead>
-                                <tr>
-                                    <th>ID группы</th>
-                                    <th>Название</th>
-                                    <th>Адрес</th>
-                                    <th>Статус</th>
-                                    <th>Дата создания</th>
-                                    <th>Действия</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for group in groups %}
-                                <tr>
-                                    <td>{{ group.group_id }}</td>
-                                    <td>{{ group.group_name }}</td>
-                                    <td>
-                                        <form method="POST" action="{{ url_for('edit_group_address', group_id=group.id) }}" style="display:inline;">
-                                            <div class="input-group">
-                                                <input type="text" class="form-control form-control-sm" name="address" value="{{ group.address or '' }}" placeholder="Адрес">
-                                                <button type="submit" class="btn btn-sm btn-primary">Сохранить</button>
-                                            </div>
-                                        </form>
-                                    </td>
-                                    <td>
-                                        {% if group.is_active %}
-                                            <span class="badge bg-success">Активна</span>
-                                        {% else %}
-                                            <span class="badge bg-secondary">Неактивна</span>
-                                        {% endif %}
-                                    </td>
-                                    <td>{{ group.created_at.strftime('%d.%m.%Y %H:%M') }}</td>
-                                    <td>
-                                        <form method="POST" action="{{ url_for('toggle_group', group_id=group.id) }}" style="display:inline;">
-                                            <button type="submit" class="btn btn-sm {% if group.is_active %}btn-warning{% else %}btn-success{% endif %}">
-                                                {% if group.is_active %}Отключить{% else %}Включить{% endif %}
-                                            </button>
-                                        </form>
-                                        <form method="POST" action="{{ url_for('remove_group', group_id=group.id) }}" style="display:inline;" onsubmit="return confirm('Вы уверены?')">
-                                            <button type="submit" class="btn btn-sm btn-danger">Удалить</button>
-                                        </form>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <i class="bi bi-plus-circle"></i> Добавить новую группу
+            </div>
+            <div class="card-body">
+                <form id="add-group-form">
+                    <div class="mb-3">
+                        <label for="group_id" class="form-label">ID группы в Telegram</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="bi bi-hash"></i></span>
+                            <input type="text" class="form-control" id="group_id" required>
+                        </div>
+                        <div class="form-text">Введите ID группы Telegram. Название группы будет получено автоматически.</div>
+                        <div id="group-name-loading" class="text-muted mt-1 d-none">
+                            <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                            Получение названия группы...
+                        </div>
+                        <div id="group-name-result" class="mt-1 d-none"></div>
                     </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Форма отправки сообщения -->
-    <div class="row mt-4">
-        <div class="col-12">
-            <div class="card shadow">
-                <div class="card-header bg-white">
-                    <h5 class="card-title mb-0">Отправка сообщения всем группам</h5>
-                </div>
-                <div class="card-body">
-                    <form method="POST" action="{{ url_for('send_message') }}" enctype="multipart/form-data">
-                        <div class="mb-3">
-                            <label class="form-label">Выберите группы:</label>
-                            <div class="form-check" style="margin-left: 20px;">
-                                {% for group in groups %}
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" name="group_ids" value="{{ group.group_id }}" id="group_{{ group.id }}">
-                                    <label class="form-check-label" for="group_{{ group.id }}">
-                                        {{ group.group_name }} ({{ group.group_id }})
-                                    </label>
-                                </div>
-                                {% endfor %}
-                            </div>
+                    <div class="mb-3">
+                        <label for="name" class="form-label">Название группы</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="bi bi-chat-dots"></i></span>
+                            <input type="text" class="form-control" id="name" required>
                         </div>
-                        <div class="mb-3">
-                            <label for="message_text" class="form-label">Текст сообщения:</label>
-                            <textarea class="form-control" id="message_text" name="message_text" rows="3" required></textarea>
+                        <div class="form-text">Название будет заполнено автоматически, но вы можете изменить его.</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="addresses" class="form-label">Адреса (через запятую)</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="bi bi-geo-alt"></i></span>
+                            <textarea class="form-control" id="addresses" rows="3"></textarea>
                         </div>
-                        <div class="mb-3">
-                            <label for="images" class="form-label">Изображения (можно выбрать несколько):</label>
-                            <input class="form-control" type="file" id="images" name="images" multiple accept="image/*">
-                        </div>
-                        <button type="submit" class="btn btn-primary">Отправить</button>
-                    </form>
-                </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-plus-circle"></i> Добавить группу
+                    </button>
+                </form>
             </div>
         </div>
     </div>
 </div>
+
+<script>
+// Загрузка списка групп при загрузке страницы
+document.addEventListener('DOMContentLoaded', function() {
+    loadGroups();
+    
+    // Обработка отправки формы
+    document.getElementById('add-group-form').addEventListener('submit', function(e) {
+        e.preventDefault();
+        addGroup();
+    });
+    
+    // Обработка ввода ID группы для автоматического получения названия
+    let debounceTimer;
+    document.getElementById('group_id').addEventListener('input', function() {
+        clearTimeout(debounceTimer);
+        const groupId = this.value.trim();
+        
+        if (groupId) {
+            // Задержка для предотвращения множественных запросов
+            debounceTimer = setTimeout(() => {
+                fetchGroupName(groupId);
+            }, 500);
+        } else {
+            // Скрыть элементы загрузки, если поле пустое
+            document.getElementById('group-name-loading').classList.add('d-none');
+            document.getElementById('group-name-result').classList.add('d-none');
+            document.getElementById('name').value = '';
+        }
+    });
+});
+
+// Загрузка списка групп
+function loadGroups() {
+    fetch('/api/groups')
+        .then(response => response.json())
+        .then(data => {
+            const tbody = document.querySelector('#groups-table tbody');
+            tbody.innerHTML = '';
+            
+            data.forEach(group => {
+                const row = document.createElement('tr');
+                var cell1 = document.createElement('td');
+                cell1.textContent = group.id;
+                var cell2 = document.createElement('td');
+                cell2.textContent = group.group_id;
+                var cell3 = document.createElement('td');
+                cell3.textContent = group.name;
+                var cell4 = document.createElement('td');
+                cell4.textContent = group.addresses ? String(group.addresses) : '';
+                var cell5 = document.createElement('td');
+                cell5.textContent = group.is_active ? 'Да' : 'Нет';
+                var cell6 = document.createElement('td');
+                var editButton = document.createElement('button');
+                editButton.className = 'btn btn-sm btn-outline-primary btn-action';
+                editButton.innerHTML = '<i class="bi bi-pencil"></i>';
+                editButton.title = 'Редактировать';
+                editButton.onclick = function() { editGroup(group.id); };
+                var deleteButton = document.createElement('button');
+                deleteButton.className = 'btn btn-sm btn-outline-danger btn-action';
+                deleteButton.innerHTML = '<i class="bi bi-trash"></i>';
+                deleteButton.title = 'Удалить';
+                deleteButton.onclick = function() { deleteGroup(group.id); };
+                cell6.appendChild(editButton);
+                cell6.appendChild(deleteButton);
+                row.appendChild(cell1);
+                row.appendChild(cell2);
+                row.appendChild(cell3);
+                row.appendChild(cell4);
+                row.appendChild(cell5);
+                row.appendChild(cell6);
+                tbody.appendChild(row);
+            });
+        })
+        .catch(error => {
+            console.error('Ошибка при загрузке групп:', error);
+        });
+}
+
+// Получение названия группы по ID
+function fetchGroupName(groupId) {
+    // Показываем индикатор загрузки
+    document.getElementById('group-name-loading').classList.remove('d-none');
+    document.getElementById('group-name-result').classList.add('d-none');
+    
+    // Отправляем запрос к API для получения информации о чате
+    fetch('/api/get_chat_info', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            chat_id: groupId
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        document.getElementById('group-name-loading').classList.add('d-none');
+        
+        // Проверяем, что ID все еще совпадает (предотвращаем гонки)
+        if (document.getElementById('group_id').value.trim() === groupId) {
+            const resultElement = document.getElementById('group-name-result');
+            
+            if (data.error) {
+                resultElement.textContent = `Ошибка: ${data.error}`;
+                resultElement.className = 'text-danger mt-1';
+                resultElement.classList.remove('d-none');
+                // Не изменяем название группы в случае ошибки
+            } else {
+                const groupName = data.title;
+                resultElement.textContent = `Получено название: ${groupName}`;
+                resultElement.className = 'text-success mt-1';
+                resultElement.classList.remove('d-none');
+                
+                // Заполняем поле названия группы
+                document.getElementById('name').value = groupName;
+            }
+        }
+    })
+    .catch(error => {
+        document.getElementById('group-name-loading').classList.add('d-none');
+        console.error('Ошибка при получении названия группы:', error);
+        
+        // Проверяем, что ID все еще совпадает (предотвращаем гонки)
+        if (document.getElementById('group_id').value.trim() === groupId) {
+            const resultElement = document.getElementById('group-name-result');
+            resultElement.textContent = 'Ошибка при получении названия группы';
+            resultElement.className = 'text-danger mt-1';
+            resultElement.classList.remove('d-none');
+        }
+    });
+}
+
+// Добавление новой группы
+function addGroup() {
+    const groupId = document.getElementById('group_id').value;
+    const name = document.getElementById('name').value;
+    const addresses = document.getElementById('addresses').value
+        .split(',')
+        .map(addr => addr.trim())
+        .filter(addr => addr);
+    
+    if (!groupId || !name) {
+        alert('Пожалуйста, заполните все обязательные поля');
+        return;
+    }
+    
+    fetch('/api/groups', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+        },
+        body: JSON.stringify({
+            group_id: groupId,
+            name: name,
+            addresses: addresses
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            alert('Ошибка: ' + data.error);
+        } else {
+            // Очистка формы
+            document.getElementById('add-group-form').reset();
+            // Скрыть результаты получения названия
+            document.getElementById('group-name-result').classList.add('d-none');
+            // Перезагрузка списка групп
+            loadGroups();
+            alert('Группа успешно добавлена!');
+        }
+    })
+    .catch(error => {
+        console.error('Ошибка при добавлении группы:', error);
+        alert('Ошибка при добавлении группы');
+    });
+}
+
+// Редактирование группы
+function editGroup(id) {
+    // Получаем информацию о группе
+    fetch(`/api/groups`)
+        .then(response => response.json())
+        .then(data => {
+            const group = data.find(g => g.id === id);
+            if (!group) {
+                alert('Группа не найдена');
+                return;
+            }
+            
+            // Заполняем форму данными группы
+            document.getElementById('group_id').value = group.group_id;
+            document.getElementById('name').value = group.name;
+            document.getElementById('addresses').value = group.addresses ? group.addresses.join(', ') : '';
+            
+            // Меняем текст кнопки на "Обновить"
+            const submitButton = document.querySelector('#add-group-form button[type="submit"]');
+            submitButton.innerHTML = '<i class="bi bi-arrow-repeat"></i> Обновить группу';
+            submitButton.onclick = function(e) {
+                e.preventDefault();
+                updateGroup(id);
+            };
+            
+            // Добавляем кнопку "Отмена"
+            if (!document.getElementById('cancel-edit-button')) {
+                const cancelButton = document.createElement('button');
+                cancelButton.type = 'button';
+                cancelButton.className = 'btn btn-secondary ms-2';
+                cancelButton.id = 'cancel-edit-button';
+                cancelButton.innerHTML = '<i class="bi bi-x-circle"></i> Отмена';
+                cancelButton.onclick = cancelEditGroup;
+                submitButton.parentNode.appendChild(cancelButton);
+            }
+            
+            // Прокручиваем к форме
+            document.getElementById('add-group-form').scrollIntoView({ behavior: 'smooth' });
+        })
+        .catch(error => {
+            console.error('Ошибка при получении информации о группе:', error);
+            alert('Ошибка при получении информации о группе');
+        });
+}
+
+// Обновление группы
+function updateGroup(id) {
+    const groupId = document.getElementById('group_id').value;
+    const name = document.getElementById('name').value;
+    const addresses = document.getElementById('addresses').value
+        .split(',')
+        .map(addr => addr.trim())
+        .filter(addr => addr);
+    
+    if (!groupId || !name) {
+        alert('Пожалуйста, заполните все обязательные поля');
+        return;
+    }
+    
+    fetch(`/api/groups/${id}`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+        },
+        body: JSON.stringify({
+            name: name,
+            addresses: addresses
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            alert('Ошибка: ' + data.error);
+        } else {
+            // Возвращаем форму в исходное состояние
+            cancelEditGroup();
+            // Перезагрузка списка групп
+            loadGroups();
+            alert('Группа успешно обновлена!');
+        }
+    })
+    .catch(error => {
+        console.error('Ошибка при обновлении группы:', error);
+        alert('Ошибка при обновлении группы');
+    });
+}
+
+// Отмена редактирования группы
+function cancelEditGroup() {
+    // Очистка формы
+    document.getElementById('add-group-form').reset();
+    // Скрыть результаты получения названия
+    document.getElementById('group-name-result').classList.add('d-none');
+    // Возвращаем текст кнопки к исходному
+    const submitButton = document.querySelector('#add-group-form button[type="submit"]');
+    submitButton.innerHTML = '<i class="bi bi-plus-circle"></i> Добавить группу';
+    submitButton.onclick = function(e) {
+        e.preventDefault();
+        addGroup();
+    };
+    // Удаляем кнопку отмены
+    const cancelButton = document.getElementById('cancel-edit-button');
+    if (cancelButton) {
+        cancelButton.remove();
+    }
+}
+
+// Удаление группы
+function deleteGroup(id) {
+    if (confirm('Вы уверены, что хотите удалить эту группу?')) {
+        fetch(`/api/groups/${id}`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                alert('Ошибка: ' + data.error);
+            } else {
+                alert('Группа успешно удалена!');
+                // Перезагрузка списка групп
+                loadGroups();
+            }
+        })
+        .catch(error => {
+            console.error('Ошибка при удалении группы:', error);
+            alert('Ошибка при удалении группы');
+        });
+    }
+}
+</script>
 {% endblock %}

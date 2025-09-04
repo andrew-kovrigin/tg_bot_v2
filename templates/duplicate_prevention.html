@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page-header">
+    <h1><i class="bi bi-shield-fill-check"></i> Система предотвращения дубликатов</h1>
+    <p class="text-muted">Информация о механизме предотвращения отправки повторяющихся уведомлений.</p>
+</div>
+
+<div class="row">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">
+                <i class="bi bi-info-circle"></i> Как работает система
+            </div>
+            <div class="card-body">
+                <p>Система предотвращения дубликатов предназначена для того, чтобы избежать повторной отправки одинаковых уведомлений пользователям. Это особенно важно для системы уведомлений об отключениях, где информация может обновляться с определенной периодичностью.</p>
+                
+                <h5>Принцип работы:</h5>
+                <ol>
+                    <li><strong>Хеширование контента:</strong> При получении новой информации об отключении система создает уникальный хеш (отпечаток) на основе содержимого уведомления.</li>
+                    <li><strong>Проверка наличия:</strong> Перед отправкой уведомления система проверяет, существуют ли уже записи с таким же хешем в базе данных.</li>
+                    <li><strong>Предотвращение дубликатов:</strong> Если запись с таким хешем уже существует, уведомление не отправляется повторно.</li>
+                    <li><strong>Отслеживание:</strong> Все отправленные уведомления сохраняются в истории с пометкой о том, является ли это уведомление дубликатом.</li>
+                </ol>
+                
+                <h5>Преимущества:</h5>
+                <ul>
+                    <li><i class="bi bi-check-circle-fill text-success"></i> Исключение спама для пользователей</li>
+                    <li><i class="bi bi-check-circle-fill text-success"></i> Экономия ресурсов системы</li>
+                    <li><i class="bi bi-check-circle-fill text-success"></i> Повышение эффективности уведомлений</li>
+                    <li><i class="bi bi-check-circle-fill text-success"></i> Улучшение пользовательского опыта</li>
+                </ul>
+                
+                <div class="alert alert-info">
+                    <i class="bi bi-lightbulb"></i> <strong>Совет:</strong> Вы можете просмотреть историю уведомлений, чтобы увидеть, какие уведомления были помечены как дубликаты.
+                </div>
+            </div>
+        </div>
+        
+        <div class="card mt-4">
+            <div class="card-header">
+                <i class="bi bi-bar-chart"></i> Статистика по дубликатам
+            </div>
+            <div class="card-body">
+                <div id="duplicate-stats-container">
+                    <div class="text-center">
+                        <div class="spinner-border" role="status">
+                            <span class="visually-hidden">Загрузка...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Загрузка статистики по дубликатам при загрузке страницы
+document.addEventListener('DOMContentLoaded', function() {
+    loadDuplicateStats();
+});
+
+// Загрузка статистики по дубликатам
+function loadDuplicateStats() {
+    fetch('/api/duplicate_stats')
+        .then(response => response.json())
+        .then(data => {
+            const container = document.getElementById('duplicate-stats-container');
+            container.innerHTML = `
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="stats-card groups">
+                            <div class="icon">
+                                <i class="bi bi-database"></i>
+                            </div>
+                            <h3>${data.total_outages}</h3>
+                            <p>Всего записей</p>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="stats-card outages">
+                            <div class="icon">
+                                <i class="bi bi-file-earmark"></i>
+                            </div>
+                            <h3>${data.unique_outages}</h3>
+                            <p>Уникальных записей</p>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="stats-card notifications">
+                            <div class="icon">
+                                <i class="bi bi-shield-check"></i>
+                            </div>
+                            <h3>${data.duplicates_prevented}</h3>
+                            <p>Предотвращено дубликатов</p>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="stats-card" style="background: linear-gradient(135deg, #f72585, #7209b7);">
+                            <div class="icon">
+                                <i class="bi bi-percent"></i>
+                            </div>
+                            <h3>${data.duplicate_percentage}%</h3>
+                            <p>Процент дубликатов</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mt-4">
+                    <h5>Интерпретация данных:</h5>
+                    <p>Система успешно предотвратила отправку <strong>${data.duplicates_prevented}</strong> дублирующихся уведомлений, что составляет <strong>${data.duplicate_percentage}%</strong> от общего количества записей. Это значительно улучшает用户体验 и снижает нагрузку на систему.</p>
+                </div>
+            `;
+        })
+        .catch(error => {
+            console.error('Ошибка при загрузке статистики по дубликатам:', error);
+            const container = document.getElementById('duplicate-stats-container');
+            container.innerHTML = '<div class="alert alert-danger">Ошибка загрузки статистики</div>';
+        });
+}
+</script>
+{% endblock %}

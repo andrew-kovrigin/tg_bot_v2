@@ -1,113 +1,100 @@
 {% extends "base.html" %}
 
-{% block title %}Настройки планировщика - Админка Telegram-бота{% endblock %}
-
 {% block content %}
-<div class="row">
-    <div class="col-12">
-        <h1 class="display-4 mb-4">Настройки планировщика</h1>
-        <p class="lead">Управление задачами, которые выполняются по расписанию</p>
-    </div>
+<div class="page-header">
+    <h1><i class="bi bi-clock-fill"></i> Планировщик задач</h1>
+    <p class="text-muted">Настройка расписания проверок и уведомлений.</p>
 </div>
 
-<div class="row mt-4">
-    <div class="col-12">
-        <div class="card shadow">
-            <div class="card-header bg-primary text-white">
-                <h5 class="mb-0">Настройки задач</h5>
+<div class="row">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">
+                <i class="bi bi-list"></i> Запланированные задачи
             </div>
             <div class="card-body">
-                <form method="POST" action="{{ url_for('update_scheduler_settings') }}">
-                    {% for setting in scheduler_settings %}
-                    <div class="card mb-3">
-                        <div class="card-body">
-                            <h5 class="card-title">{{ setting.job_name }}</h5>
-                            <p class="card-text">{{ setting.description or "Нет описания" }}</p>
-                            
-                            <div class="form-check form-switch mb-3">
-                                <input class="form-check-input" type="checkbox" id="enabled_{{ setting.id }}" 
-                                       name="enabled_{{ setting.id }}" {% if setting.is_enabled %}checked{% endif %}>
-                                <label class="form-check-label" for="enabled_{{ setting.id }}">Включено</label>
+                <div class="table-responsive">
+                    <table class="table table-striped" id="tasks-table">
+                        <thead>
+                            <tr>
+                                <th>Название</th>
+                                <th>Типы задач</th>
+                                <th>Интервал</th>
+                                <th>Группы</th>
+                                <th>Активна</th>
+                                <th>Действия</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Данные будут загружены через AJAX -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">
+                <i class="bi bi-plus-circle"></i> Добавить новую задачу
+            </div>
+            <div class="card-body">
+                <form id="add-task-form">
+                    <div class="mb-3">
+                        <label for="name" class="form-label">Название задачи</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="bi bi-card-heading"></i></span>
+                            <input type="text" class="form-control" id="name" required>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Типы задач</label>
+                        <div id="task-types-checkboxes">
+                            <!-- Чекбоксы типов задач будут загружены через AJAX -->
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="interval_type" class="form-label">Тип интервала</label>
+                                <select class="form-control" id="interval_type" required>
+                                    <option value="minute">Минуты</option>
+                                    <option value="hour">Часы</option>
+                                    <option value="day">Дни</option>
+                                    <option value="week">Недели</option>
+                                    <option value="month">Месяцы</option>
+                                </select>
                             </div>
-                            
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <label for="interval_type_{{ setting.id }}" class="form-label">Тип интервала</label>
-                                    <select class="form-select" id="interval_type_{{ setting.id }}" name="interval_type_{{ setting.id }}" 
-                                            {% if not setting.is_enabled %}disabled{% endif %}>
-                                        <option value="minutely" {% if setting.interval_type == 'minutely' %}selected{% endif %}>Ежеминутно</option>
-                                        <option value="hourly" {% if setting.interval_type == 'hourly' %}selected{% endif %}>Ежечасно</option>
-                                        <option value="daily" {% if setting.interval_type == 'daily' %}selected{% endif %}>Ежедневно</option>
-                                        <option value="weekly" {% if setting.interval_type == 'weekly' %}selected{% endif %}>Еженедельно</option>
-                                        <option value="monthly" {% if setting.interval_type == 'monthly' %}selected{% endif %}>Ежемесячно</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-6">
-                                    <label for="interval_value_{{ setting.id }}" class="form-label">Интервал (значение)</label>
-                                    <input type="number" class="form-control" id="interval_value_{{ setting.id }}" 
-                                           name="interval_value_{{ setting.id }}" min="1" max="1440" 
-                                           value="{{ setting.interval_value or '1' }}" {% if not setting.is_enabled %}disabled{% endif %}>
-                                </div>
-                            </div>
-                            
-                            <div class="row mt-3" id="time_settings_{{ setting.id }}" style="display: {% if setting.interval_type == 'minutely' or setting.interval_type == 'hourly' %}none{% else %}flex{% endif %};">
-                                <div class="col-md-6">
-                                    <label for="hour_{{ setting.id }}" class="form-label">Час</label>
-                                    <input type="number" class="form-control" id="hour_{{ setting.id }}" 
-                                           name="hour_{{ setting.id }}" min="0" max="23" 
-                                           value="{{ setting.hour or '' }}" {% if not setting.is_enabled %}disabled{% endif %}>
-                                </div>
-                                <div class="col-md-6">
-                                    <label for="minute_{{ setting.id }}" class="form-label">Минута</label>
-                                    <input type="number" class="form-control" id="minute_{{ setting.id }}" 
-                                           name="minute_{{ setting.id }}" min="0" max="59" 
-                                           value="{{ setting.minute or '' }}" {% if not setting.is_enabled %}disabled{% endif %}>
-                                </div>
-                            </div>
-                            
-                            <div class="row mt-3" id="weekly_settings_{{ setting.id }}" style="display: {% if setting.interval_type == 'weekly' %}flex{% else %}none{% endif %};">
-                                <div class="col-md-12">
-                                    <label class="form-label">День недели</label>
-                                    <div>
-                                        {% set days = ['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота', 'Воскресенье'] %}
-                                        {% for i in range(7) %}
-                                        <div class="form-check form-check-inline">
-                                            <input class="form-check-input" type="checkbox" id="day_{{ setting.id }}_{{ i }}" 
-                                                   name="days_{{ setting.id }}" value="{{ i }}"
-                                                   {% if setting.day_of_week and i|string in setting.day_of_week.split(',') %}checked{% endif %}
-                                                   {% if not setting.is_enabled %}disabled{% endif %}>
-                                            <label class="form-check-label" for="day_{{ setting.id }}_{{ i }}">{{ days[i] }}</label>
-                                        </div>
-                                        {% endfor %}
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <div class="row mt-3" id="monthly_settings_{{ setting.id }}" style="display: {% if setting.interval_type == 'monthly' %}flex{% else %}none{% endif %};">
-                                <div class="col-md-12">
-                                    <label for="day_of_month_{{ setting.id }}" class="form-label">День месяца</label>
-                                    <input type="number" class="form-control" id="day_of_month_{{ setting.id }}" 
-                                           name="day_of_month_{{ setting.id }}" min="1" max="31" 
-                                           value="{{ setting.day_of_month or '' }}" {% if not setting.is_enabled %}disabled{% endif %}>
-                                </div>
-                            </div>
-                            
-                            <div class="row mt-3">
-                                <div class="col-md-12">
-                                    <label for="target_groups_{{ setting.id }}" class="form-label">ID групп для отправки (через запятую)</label>
-                                    <input type="text" class="form-control" id="target_groups_{{ setting.id }}" 
-                                           name="target_groups_{{ setting.id }}" 
-                                           value="{{ setting.target_groups or '' }}" 
-                                           placeholder="Оставьте пустым для отправки во все группы">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="interval_value" class="form-label">Значение интервала</label>
+                                <div class="input-group">
+                                    <input type="number" class="form-control" id="interval_value" min="1" required>
+                                    <span class="input-group-text">единиц</span>
                                 </div>
                             </div>
                         </div>
+                    <div class="mb-3">
+                        <label for="time_of_day" class="form-label">Время суток (опционально, HH:MM)</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="bi bi-clock"></i></span>
+                            <input type="text" class="form-control" id="time_of_day" placeholder="09:00">
+                        </div>
+                    <div class="mb-3">
+                        <label class="form-label">Группы для уведомлений</label>
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="checkbox" id="select-all-groups" checked>
+                            <label class="form-check-label" for="select-all-groups">
+                                Отправлять во все группы
+                            </label>
+                        </div>
+                        <div id="groups-checkboxes">
+                            <!-- Чекбоксы групп будут загружены через AJAX -->
+                        </div>
                     </div>
-                    {% endfor %}
-                    
-                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
-                        <button type="submit" class="btn btn-primary">Сохранить изменения</button>
-                    </div>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-plus-circle"></i> Добавить задачу
+                    </button>
                 </form>
             </div>
         </div>
@@ -115,88 +102,386 @@
 </div>
 
 <script>
-    // Включаем/отключаем поля ввода при изменении чекбокса
-    document.querySelectorAll('.form-check-input').forEach(checkbox => {
-        checkbox.addEventListener('change', function() {
-            const settingId = this.id.split('_')[1];
-            const hourInput = document.getElementById(`hour_${settingId}`);
-            const minuteInput = document.getElementById(`minute_${settingId}`);
-            const intervalTypeSelect = document.getElementById(`interval_type_${settingId}`);
-            const intervalValueInput = document.getElementById(`interval_value_${settingId}`);
-            const dayOfMonthInput = document.getElementById(`day_of_month_${settingId}`);
-            const timeSettings = document.getElementById(`time_settings_${settingId}`);
-            const weeklySettings = document.getElementById(`weekly_settings_${settingId}`);
-            const monthlySettings = document.getElementById(`monthly_settings_${settingId}`);
-            
-            if (this.checked) {
-                hourInput.disabled = false;
-                minuteInput.disabled = false;
-                intervalTypeSelect.disabled = false;
-                intervalValueInput.disabled = false;
-                dayOfMonthInput.disabled = false;
-                
-                // Включаем чекбоксы дней недели
-                const dayCheckboxes = document.querySelectorAll(`input[name="days_${settingId}"]`);
-                dayCheckboxes.forEach(cb => cb.disabled = false);
-                
-                // Показываем настройки в зависимости от типа интервала
-                if (intervalTypeSelect.value === 'weekly') {
-                    timeSettings.style.display = 'flex';
-                    weeklySettings.style.display = 'flex';
-                    monthlySettings.style.display = 'none';
-                } else if (intervalTypeSelect.value === 'monthly') {
-                    timeSettings.style.display = 'flex';
-                    weeklySettings.style.display = 'none';
-                    monthlySettings.style.display = 'flex';
-                } else if (intervalTypeSelect.value === 'minutely' || intervalTypeSelect.value === 'hourly') {
-                    timeSettings.style.display = 'none';
-                    weeklySettings.style.display = 'none';
-                    monthlySettings.style.display = 'none';
-                } else {
-                    timeSettings.style.display = 'flex';
-                    weeklySettings.style.display = 'none';
-                    monthlySettings.style.display = 'none';
-                }
-            } else {
-                hourInput.disabled = true;
-                minuteInput.disabled = true;
-                intervalTypeSelect.disabled = true;
-                intervalValueInput.disabled = true;
-                dayOfMonthInput.disabled = true;
-                
-                // Отключаем чекбоксы дней недели
-                const dayCheckboxes = document.querySelectorAll(`input[name="days_${settingId}"]`);
-                dayCheckboxes.forEach(cb => cb.disabled = true);
-            }
-        });
+// Загрузка списка задач при загрузке страницы
+document.addEventListener('DOMContentLoaded', function() {
+    loadTasks();
+    loadGroupsForTaskForm();
+    loadTaskTypesForTaskForm();
+    
+    // Обработка отправки формы
+    document.getElementById('add-task-form').addEventListener('submit', function(e) {
+        e.preventDefault();
+        addTask();
     });
     
-    // Показываем/скрываем настройки в зависимости от типа интервала
-    document.querySelectorAll('select[id^="interval_type_"]').forEach(select => {
-        select.addEventListener('change', function() {
-            const settingId = this.id.split('_')[2];
-            const timeSettings = document.getElementById(`time_settings_${settingId}`);
-            const weeklySettings = document.getElementById(`weekly_settings_${settingId}`);
-            const monthlySettings = document.getElementById(`monthly_settings_${settingId}`);
-            
-            if (this.value === 'weekly') {
-                timeSettings.style.display = 'flex';
-                weeklySettings.style.display = 'flex';
-                monthlySettings.style.display = 'none';
-            } else if (this.value === 'monthly') {
-                timeSettings.style.display = 'flex';
-                weeklySettings.style.display = 'none';
-                monthlySettings.style.display = 'flex';
-            } else if (this.value === 'minutely' || this.value === 'hourly') {
-                timeSettings.style.display = 'none';
-                weeklySettings.style.display = 'none';
-                monthlySettings.style.display = 'none';
-            } else {
-                timeSettings.style.display = 'flex';
-                weeklySettings.style.display = 'none';
-                monthlySettings.style.display = 'none';
-            }
+    // Обработка выбора "Выбрать все группы"
+    document.getElementById('select-all-groups').addEventListener('change', function() {
+        const checkboxes = document.querySelectorAll('#groups-checkboxes .group-checkbox');
+        checkboxes.forEach(checkbox => {
+            checkbox.checked = this.checked;
         });
     });
+});
+
+// Загрузка списка задач при загрузке страницы
+function loadTasks() {
+    // Загружаем задачи, группы и типы задач параллельно
+    Promise.all([
+        fetch('/api/scheduled_tasks').then(response => response.json()),
+        fetch('/api/groups').then(response => response.json()),
+        fetch('/api/task_types').then(response => response.json())
+    ])
+    .then(([tasks, groups, taskTypes]) => {
+        const tbody = document.querySelector('#tasks-table tbody');
+        tbody.innerHTML = '';
+        
+        // Создаем карты для быстрого поиска
+        const groupsMap = {};
+        groups.forEach(group => {
+            groupsMap[group.id] = group;
+        });
+        
+        const taskTypesMap = {};
+        taskTypes.forEach(taskType => {
+            taskTypesMap[taskType.id] = taskType;
+        });
+        
+        tasks.forEach(task => {
+            const intervalText = `${task.interval_value} ${getIntervalText(task.interval_type)}`;
+            
+            // Формируем список назначенных типов задач
+            let taskTypesText = 'Не выбраны';
+            if (task.task_types && task.task_types.length > 0) {
+                const typeNames = task.task_types.map(typeId => {
+                    const taskType = taskTypesMap[typeId];
+                    return taskType ? taskType.display_name : `Тип ${typeId}`;
+                });
+                taskTypesText = typeNames.join(', ');
+            }
+            
+            // Формируем список назначенных групп
+            let groupsText = 'Все группы';
+            if (task.assigned_groups && task.assigned_groups.length > 0) {
+                const groupNames = task.assigned_groups.map(groupId => {
+                    const group = groupsMap[groupId];
+                    return group ? group.name : `Группа ${groupId}`;
+                });
+                groupsText = groupNames.join(', ');
+            }
+            
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${task.name}</td>
+                <td>${taskTypesText}</td>
+                <td>${intervalText}</td>
+                <td>${groupsText}</td>
+                <td>${task.is_active ? '<i class="bi bi-check-circle-fill text-success"></i> Да' : '<i class="bi bi-x-circle-fill text-danger"></i> Нет'}</td>
+                <td>
+                    <button class="btn btn-sm btn-outline-primary btn-action" onclick="editTask(${task.id})" title="Редактировать">
+                        <i class="bi bi-pencil"></i>
+                    </button>
+                    <button class="btn btn-sm btn-outline-danger btn-action" onclick="deleteTask(${task.id})" title="Удалить">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </td>
+            `;
+            tbody.appendChild(row);
+        });
+    })
+    .catch(error => {
+        console.error('Ошибка при загрузке задач:', error);
+    });
+}
+
+// Загрузка списка типов задач для формы добавления задачи
+function loadTaskTypesForTaskForm() {
+    fetch('/api/task_types')
+        .then(response => response.json())
+        .then(data => {
+            const container = document.getElementById('task-types-checkboxes');
+            container.innerHTML = '';
+            
+            if (data.length === 0) {
+                container.innerHTML = '<div class="text-muted">Нет доступных типов задач</div>';
+                return;
+            }
+            
+            data.forEach(taskType => {
+                const div = document.createElement('div');
+                div.className = 'form-check';
+                div.innerHTML = `
+                    <input class="form-check-input task-type-checkbox" type="checkbox" id="task-type-${taskType.id}" value="${taskType.name}">
+                    <label class="form-check-label" for="task-type-${taskType.id}">
+                        ${taskType.display_name}
+                    </label>
+                    <small class="text-muted d-block">${taskType.description}</small>
+                `;
+                container.appendChild(div);
+            });
+        })
+        .catch(error => {
+            console.error('Ошибка при загрузке типов задач:', error);
+            const container = document.getElementById('task-types-checkboxes');
+            container.innerHTML = '<div class="text-danger">Ошибка загрузки типов задач</div>';
+        });
+}
+
+// Загрузка списка групп для формы добавления задачи
+function loadGroupsForTaskForm() {
+    fetch('/api/groups')
+        .then(response => response.json())
+        .then(data => {
+            const container = document.getElementById('groups-checkboxes');
+            container.innerHTML = '';
+            
+            if (data.length === 0) {
+                container.innerHTML = '<div class="text-muted">Нет доступных групп</div>';
+                return;
+            }
+            
+            data.forEach(group => {
+                const div = document.createElement('div');
+                div.className = 'form-check';
+                div.innerHTML = `
+                    <input class="form-check-input group-checkbox" type="checkbox" id="group-${group.id}" value="${group.id}">
+                    <label class="form-check-label" for="group-${group.id}">
+                        ${group.name} (${group.group_id})
+                    </label>
+                `;
+                container.appendChild(div);
+            });
+        })
+        .catch(error => {
+            console.error('Ошибка при загрузке групп:', error);
+            const container = document.getElementById('groups-checkboxes');
+            container.innerHTML = '<div class="text-danger">Ошибка загрузки групп</div>';
+        });
+}
+
+// Добавление новой задачи
+function addTask() {
+    const name = document.getElementById('name').value;
+    const intervalType = document.getElementById('interval_type').value;
+    const intervalValue = document.getElementById('interval_value').value;
+    const timeOfDay = document.getElementById('time_of_day').value;
+    
+    // Получаем выбранные типы задач
+    const selectedTaskTypes = [];
+    const typeCheckboxes = document.querySelectorAll('#task-types-checkboxes .task-type-checkbox:checked');
+    typeCheckboxes.forEach(checkbox => {
+        selectedTaskTypes.push(checkbox.value);
+    });
+    
+    if (selectedTaskTypes.length === 0) {
+        alert('Пожалуйста, выберите хотя бы один тип задачи');
+        return;
+    }
+    
+    // Получаем выбранные группы
+    const selectedGroups = [];
+    const groupCheckboxes = document.querySelectorAll('#groups-checkboxes .group-checkbox:checked');
+    groupCheckboxes.forEach(checkbox => {
+        selectedGroups.push(parseInt(checkbox.value));
+    });
+    
+    // Если выбрана опция "Отправлять во все группы", не передаем конкретные группы
+    const groupIds = document.getElementById('select-all-groups').checked ? [] : selectedGroups;
+    
+    fetch('/api/scheduled_tasks', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+        },
+        body: JSON.stringify({
+            name: name,
+            task_types: selectedTaskTypes,  // Список типов задач
+            interval_type: intervalType,
+            interval_value: parseInt(intervalValue),
+            time_of_day: timeOfDay || null,
+            group_ids: groupIds.length > 0 ? groupIds : null
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            alert('Ошибка: ' + data.error);
+        } else {
+            // Очистка формы
+            document.getElementById('add-task-form').reset();
+            // Снимаем выделение с групп и типов задач
+            document.querySelectorAll('#groups-checkboxes .group-checkbox').forEach(checkbox => {
+                checkbox.checked = false;
+            });
+            document.querySelectorAll('#task-types-checkboxes .task-type-checkbox').forEach(checkbox => {
+                checkbox.checked = false;
+            });
+            document.getElementById('select-all-groups').checked = true;
+            // Перезагрузка списка задач
+            loadTasks();
+            alert('Задача успешно добавлена!');
+        }
+    })
+    .catch(error => {
+        console.error('Ошибка при добавлении задачи:', error);
+        alert('Ошибка при добавлении задачи');
+    });
+}
+
+// Получение текстового представления типа интервала
+function getIntervalText(intervalType) {
+    const intervals = {
+        'minute': 'минут',
+        'hour': 'часов',
+        'day': 'дней',
+        'week': 'недель',
+        'month': 'месяцев'
+    };
+    return intervals[intervalType] || intervalType;
+}
+
+// Редактирование задачи
+function editTask(id) {
+    // Загружаем данные задачи и доступные типы задач
+    Promise.all([
+        fetch(`/api/scheduled_tasks/${id}`).then(response => response.json()),
+        fetch('/api/task_types').then(response => response.json())
+    ])
+    .then(([task, taskTypes]) => {
+        // Заполняем форму данными задачи
+        document.getElementById('name').value = task.name;
+        document.getElementById('interval_type').value = task.interval_type;
+        document.getElementById('interval_value').value = task.interval_value;
+        document.getElementById('time_of_day').value = task.time_of_day || '';
+        
+        // Устанавливаем выбранные типы задач
+        const typeCheckboxes = document.querySelectorAll('#task-types-checkboxes .task-type-checkbox');
+        typeCheckboxes.forEach(checkbox => {
+            checkbox.checked = task.task_types.includes(checkbox.value);
+        });
+        
+        // Меняем текст кнопки на "Обновить"
+        const submitButton = document.querySelector('#add-task-form button[type="submit"]');
+        submitButton.innerHTML = '<i class="bi bi-arrow-repeat"></i> Обновить задачу';
+        submitButton.onclick = function(e) {
+            e.preventDefault();
+            updateTask(id);
+        };
+        
+        // Добавляем кнопку отмены
+        const cancelButton = document.createElement('button');
+        cancelButton.type = 'button';
+        cancelButton.className = 'btn btn-secondary ms-2';
+        cancelButton.innerHTML = '<i class="bi bi-x-circle"></i> Отмена';
+        cancelButton.id = 'cancel-edit-task-button';
+        cancelButton.onclick = cancelEditTask;
+        submitButton.parentNode.appendChild(cancelButton);
+    })
+    .catch(error => {
+        console.error('Ошибка при получении информации о задаче:', error);
+        alert('Ошибка при получении информации о задаче');
+    });
+}
+
+// Обновление задачи
+function updateTask(id) {
+    const name = document.getElementById('name').value;
+    const intervalType = document.getElementById('interval_type').value;
+    const intervalValue = document.getElementById('interval_value').value;
+    const timeOfDay = document.getElementById('time_of_day').value;
+    
+    // Получаем выбранные типы задач
+    const selectedTaskTypes = [];
+    const typeCheckboxes = document.querySelectorAll('#task-types-checkboxes .task-type-checkbox:checked');
+    typeCheckboxes.forEach(checkbox => {
+        selectedTaskTypes.push(checkbox.value);
+    });
+    
+    if (selectedTaskTypes.length === 0) {
+        alert('Пожалуйста, выберите хотя бы один тип задачи');
+        return;
+    }
+    
+    if (!name || !intervalType || !intervalValue) {
+        alert('Пожалуйста, заполните все обязательные поля');
+        return;
+    }
+    
+    fetch(`/api/scheduled_tasks/${id}`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+        },
+        body: JSON.stringify({
+            name: name,
+            task_types: selectedTaskTypes,  // Список типов задач
+            interval_type: intervalType,
+            interval_value: parseInt(intervalValue),
+            time_of_day: timeOfDay || null
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            alert('Ошибка: ' + data.error);
+        } else {
+            // Возвращаем форму в исходное состояние
+            cancelEditTask();
+            // Перезагрузка списка задач
+            loadTasks();
+            alert('Задача успешно обновлена!');
+        }
+    })
+    .catch(error => {
+        console.error('Ошибка при обновлении задачи:', error);
+        alert('Ошибка при обновлении задачи');
+    });
+}
+
+// Отмена редактирования задачи
+function cancelEditTask() {
+    // Очистка формы
+    document.getElementById('add-task-form').reset();
+    // Возвращаем текст кнопки к исходному
+    const submitButton = document.querySelector('#add-task-form button[type="submit"]');
+    submitButton.innerHTML = '<i class="bi bi-plus-circle"></i> Добавить задачу';
+    submitButton.onclick = function(e) {
+        e.preventDefault();
+        addTask();
+    };
+    // Удаляем кнопку отмены
+    const cancelButton = document.getElementById('cancel-edit-task-button');
+    if (cancelButton) {
+        cancelButton.remove();
+    }
+}
+
+// Удаление задачи
+function deleteTask(id) {
+    if (confirm('Вы уверены, что хотите удалить эту задачу?')) {
+        fetch(`/api/scheduled_tasks/${id}`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                alert('Ошибка: ' + data.error);
+            } else {
+                // Перезагрузка списка задач
+                loadTasks();
+                alert('Задача успешно удалена!');
+            }
+        })
+        .catch(error => {
+            console.error('Ошибка при удалении задачи:', error);
+            alert('Ошибка при удалении задачи');
+        });
+    }
+}
 </script>
 {% endblock %}

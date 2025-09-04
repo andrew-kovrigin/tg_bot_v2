@@ -1,0 +1,182 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page-header">
+    <h1><i class="bi bi-send-fill"></i> Отправка сообщений</h1>
+    <p class="text-muted">Отправка произвольных сообщений в Telegram группы.</p>
+</div>
+
+<div class="row">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">
+                <i class="bi bi-chat-square-text"></i> Отправить сообщение в группы
+            </div>
+            <div class="card-body">
+                <form id="send-message-form">
+                    <div class="mb-3">
+                        <label for="message" class="form-label">Текст сообщения</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="bi bi-pencil"></i></span>
+                            <textarea class="form-control" id="message" rows="5" placeholder="Введите текст сообщения..." required></textarea>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Выберите группы</label>
+                        <div id="groups-checkboxes">
+                            <!-- Чекбоксы групп будут загружены через AJAX -->
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="select-all-groups">
+                                <label class="form-check-label" for="select-all-groups">
+                                    <i class="bi bi-check-all"></i> Выбрать все группы
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary" id="send-button">
+                        <span id="send-button-text"><i class="bi bi-send"></i> Отправить сообщение</span>
+                        <span id="send-button-spinner" class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+                    </button>
+                </form>
+                
+                <div id="result-message" class="mt-3 d-none"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Загрузка списка групп при загрузке страницы
+document.addEventListener('DOMContentLoaded', function() {
+    loadGroups();
+    
+    // Обработка отправки формы
+    document.getElementById('send-message-form').addEventListener('submit', function(e) {
+        e.preventDefault();
+        sendMessage();
+    });
+    
+    // Обработка выбора "Выбрать все группы"
+    document.getElementById('select-all-groups').addEventListener('change', function() {
+        const checkboxes = document.querySelectorAll('#groups-checkboxes .group-checkbox');
+        checkboxes.forEach(checkbox => {
+            checkbox.checked = this.checked;
+        });
+    });
+});
+
+// Загрузка списка групп
+function loadGroups() {
+    fetch('/api/groups')
+        .then(response => response.json())
+        .then(data => {
+            const container = document.getElementById('groups-checkboxes');
+            
+            // Очищаем контейнер, но оставляем чекбокс "Выбрать все"
+            const selectAll = document.getElementById('select-all-groups').closest('.form-check');
+            container.innerHTML = '';
+            container.appendChild(selectAll);
+            
+            if (data.length === 0) {
+                container.innerHTML += '<div class="text-muted">Нет доступных групп</div>';
+                return;
+            }
+            
+            data.forEach(group => {
+                const div = document.createElement('div');
+                div.className = 'form-check';
+                div.innerHTML = `
+                    <input class="form-check-input group-checkbox" type="checkbox" id="group-${group.id}" value="${group.id}">
+                    <label class="form-check-label" for="group-${group.id}">
+                        <i class="bi bi-people"></i> ${group.name} (${group.group_id})
+                    </label>
+                `;
+                container.appendChild(div);
+            });
+        })
+        .catch(error => {
+            console.error('Ошибка при загрузке групп:', error);
+            const container = document.getElementById('groups-checkboxes');
+            const selectAll = document.getElementById('select-all-groups').closest('.form-check');
+            container.innerHTML = '';
+            container.appendChild(selectAll);
+            container.innerHTML += '<div class="text-danger">Ошибка загрузки групп</div>';
+        });
+}
+
+// Отправка сообщения
+function sendMessage() {
+    const message = document.getElementById('message').value.trim();
+    if (!message) {
+        alert('Пожалуйста, введите текст сообщения');
+        return;
+    }
+    
+    // Получаем выбранные группы
+    const selectedGroups = [];
+    const checkboxes = document.querySelectorAll('#groups-checkboxes .group-checkbox:checked');
+    checkboxes.forEach(checkbox => {
+        selectedGroups.push(parseInt(checkbox.value));
+    });
+    
+    // Если ни одна группа не выбрана, отправляем во все группы
+    const groupIds = selectedGroups.length > 0 ? selectedGroups : [];
+    
+    // Блокируем форму и показываем индикатор загрузки
+    const sendButton = document.getElementById('send-button');
+    const sendButtonText = document.getElementById('send-button-text');
+    const sendButtonSpinner = document.getElementById('send-button-spinner');
+    const resultMessage = document.getElementById('result-message');
+    
+    sendButton.disabled = true;
+    sendButtonText.innerHTML = '<i class="bi bi-send"></i> Отправка...';
+    sendButtonSpinner.classList.remove('d-none');
+    resultMessage.classList.add('d-none');
+    
+    // Отправляем сообщение
+    fetch('/api/send_message', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+        },
+        body: JSON.stringify({
+            message: message,
+            group_ids: groupIds
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            resultMessage.className = 'alert alert-danger mt-3';
+            resultMessage.innerHTML = '<i class="bi bi-exclamation-triangle"></i> Ошибка: ' + data.error;
+        } else {
+            resultMessage.className = 'alert alert-success mt-3';
+            resultMessage.innerHTML = `<i class="bi bi-check-circle"></i> Сообщение отправлено успешно! Успешно: ${data.sent_count}, Ошибок: ${data.error_count}`;
+            // Очищаем форму
+            document.getElementById('message').value = '';
+            // Снимаем выделение с групп
+            document.querySelectorAll('#groups-checkboxes .group-checkbox').forEach(checkbox => {
+                checkbox.checked = false;
+            });
+            document.getElementById('select-all-groups').checked = false;
+        }
+        resultMessage.classList.remove('d-none');
+    })
+    .catch(error => {
+        console.error('Ошибка при отправке сообщения:', error);
+        resultMessage.className = 'alert alert-danger mt-3';
+        resultMessage.innerHTML = '<i class="bi bi-exclamation-triangle"></i> Ошибка при отправке сообщения: ' + error.message;
+        resultMessage.classList.remove('d-none');
+    })
+    .finally(() => {
+        // Разблокируем форму
+        sendButton.disabled = false;
+        sendButtonText.innerHTML = '<i class="bi bi-send"></i> Отправить сообщение';
+        sendButtonSpinner.classList.add('d-none');
+    });
+}
+</script>
+{% endblock %}

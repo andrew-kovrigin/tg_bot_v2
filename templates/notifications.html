@@ -1,0 +1,213 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page-header">
+    <h1><i class="bi bi-bell-fill"></i> История уведомлений</h1>
+    <p class="text-muted">Просмотр истории отправленных уведомлений с возможностью фильтрации.</p>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <i class="bi bi-funnel"></i> Фильтры
+    </div>
+    <div class="card-body">
+        <form id="filter-form" class="row g-3">
+            <div class="col-md-4">
+                <label for="event_type" class="form-label">Тип события</label>
+                <select class="form-control" id="event_type">
+                    <option value="">Все типы</option>
+                    <option value="outage">Отключения</option>
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label for="group_id" class="form-label">Группа</label>
+                <select class="form-control" id="group_id">
+                    <option value="">Все группы</option>
+                    <!-- Опции будут загружены через AJAX -->
+                </select>
+            </div>
+            <div class="col-md-4 d-flex align-items-end">
+                <button type="button" class="btn btn-primary w-100" onclick="loadNotifications()">
+                    <i class="bi bi-search"></i> Фильтровать
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card mt-4">
+    <div class="card-header">
+        <i class="bi bi-list"></i> Список уведомлений
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-striped" id="notifications-table">
+                <thead>
+                    <tr>
+                        <th>Тип события</th>
+                        <th>Группа</th>
+                        <th>Время отправки</th>
+                        <th>Дубликат</th>
+                        <th>Действия</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Данные будут загружены через AJAX -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно для просмотра деталей уведомления -->
+<div class="modal fade" id="notificationModal" tabindex="-1" aria-labelledby="notificationModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="notificationModalLabel">
+                    <i class="bi bi-info-circle"></i> Детали уведомления
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="notification-details">
+                    <!-- Детали уведомления будут загружены сюда -->
+                </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="bi bi-x-circle"></i> Закрыть
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Загрузка списка уведомлений при загрузке страницы
+document.addEventListener('DOMContentLoaded', function() {
+    loadNotifications();
+    loadGroups();
+});
+
+// Загрузка списка уведомлений
+function loadNotifications() {
+    const eventType = document.getElementById('event_type').value;
+    const groupId = document.getElementById('group_id').value;
+    
+    let url = '/api/notifications';
+    if (eventType) {
+        url += `?event_type=${eventType}`;
+    }
+    
+    // Показываем индикатор загрузки
+    const tbody = document.querySelector('#notifications-table tbody');
+    tbody.innerHTML = '<tr><td colspan="5" class="text-center"><div class="spinner-border" role="status"><span class="visually-hidden">Загрузка...</span></div></td></tr>';
+    
+    fetch(url)
+        .then(response => response.json())
+        .then(data => {
+            tbody.innerHTML = '';
+            
+            if (data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="text-center">Уведомления не найдены</td></tr>';
+                return;
+            }
+            
+            data.forEach(notification => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td><i class="bi bi-lightning-charge-fill"></i> ${getEventTypeText(notification.event_type)}</td>
+                    <td>${notification.group_id}</td>
+                    <td>${formatDate(notification.sent_at)}</td>
+                    <td>${notification.is_duplicate ? '<i class="bi bi-check-circle-fill text-success"></i> Да' : '<i class="bi bi-x-circle-fill text-danger"></i> Нет'}</td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-primary btn-action" onclick="viewNotification(${notification.id})" title="Просмотр">
+                            <i class="bi bi-eye"></i>
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        })
+        .catch(error => {
+            console.error('Ошибка при загрузке уведомлений:', error);
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center text-danger">Ошибка загрузки данных</td></tr>';
+        });
+}
+
+// Загрузка списка групп
+function loadGroups() {
+    fetch('/api/groups')
+        .then(response => response.json())
+        .then(data => {
+            const select = document.getElementById('group_id');
+            // Очищаем существующие опции, кроме первой
+            select.innerHTML = '<option value="">Все группы</option>';
+            
+            data.forEach(group => {
+                const option = document.createElement('option');
+                option.value = group.group_id;
+                option.textContent = group.name;
+                select.appendChild(option);
+            });
+        })
+        .catch(error => {
+            console.error('Ошибка при загрузке групп:', error);
+        });
+}
+
+// Просмотр деталей уведомления
+function viewNotification(id) {
+    // Показываем индикатор загрузки
+    const details = document.getElementById('notification-details');
+    details.innerHTML = '<div class="text-center"><div class="spinner-border" role="status"><span class="visually-hidden">Загрузка...</span></div></div>';
+    
+    fetch(`/api/notifications/${id}`)
+        .then(response => response.json())
+        .then(data => {
+            details.innerHTML = `
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><strong><i class="bi bi-tag"></i> Тип события:</strong> ${getEventTypeText(data.event_type)}</p>
+                        <p><strong><i class="bi bi-hash"></i> ID события:</strong> ${data.event_id}</p>
+                        <p><strong><i class="bi bi-people"></i> ID группы:</strong> ${data.group_id}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong><i class="bi bi-calendar"></i> Время отправки:</strong> ${formatDate(data.sent_at)}</p>
+                        <p><strong><i class="bi bi-clipboard-check"></i> Дубликат:</strong> ${data.is_duplicate ? '<span class="text-success"><i class="bi bi-check-circle-fill"></i> Да</span>' : '<span class="text-danger"><i class="bi bi-x-circle-fill"></i> Нет</span>'}</p>
+                    </div>
+                </div>
+                <div class="mt-3">
+                    <p><strong><i class="bi bi-chat-square-text"></i> Сообщение:</strong></p>
+                    <div class="notification-content">
+                        ${data.message.replace(/\n/g, '<br>')}
+                    </div>
+                </div>
+            `;
+            
+            // Открываем модальное окно
+            const modal = new bootstrap.Modal(document.getElementById('notificationModal'));
+            modal.show();
+        })
+        .catch(error => {
+            console.error('Ошибка при загрузке деталей уведомления:', error);
+            details.innerHTML = '<div class="alert alert-danger">Ошибка загрузки деталей уведомления</div>';
+        });
+}
+
+// Получение текстового представления типа события
+function getEventTypeText(eventType) {
+    const eventTypes = {
+        'outage': 'Отключение'
+    };
+    return eventTypes[eventType] || eventType;
+}
+
+// Форматирование даты
+function formatDate(dateString) {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    return date.toLocaleString('ru-RU');
+}
+</script>
+{% endblock %}

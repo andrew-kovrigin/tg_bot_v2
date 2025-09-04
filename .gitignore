@@ -89,7 +89,7 @@ ipython_config.py
 #   install all needed dependencies.
 #Pipfile.lock
 
-# PEP 582; used by e.g. github.com/David-OConnor/pyflow
+# PEP 582; used by e.g. github.com/David-OConnor/pyflow and github.com/pdm-project/pdm
 __pypackages__/
 
 # Celery stuff
@@ -101,12 +101,12 @@ celerybeat.pid
 
 # Environments
 .env
-.venv
+.venv/
 env/
 venv/
 ENV/
-env.bak
-venv.bak
+env.bak/
+venv.bak/
 
 # Spyder project settings
 .spyderproject
@@ -126,36 +126,19 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
-# IDEs
+# Application logs
+*.log
+
+# Database files
+*.db
+*.sqlite3
+
+# IDE specific files
 .vscode/
 .idea/
 *.swp
 *.swo
-*~
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Project specific
-# Database files
-databases/*.db
-databases/*.db-*
-*.db
-*.db-*
-
-# Log files
-*.log
-
-# Temporary files
-*.tmp
-*.temp
-tmp/
-temp/
-parse.html
-
-# Scheduler flag file
-scheduler_update.flag
-
-# Environment variables file
-.env.local
+.roo
+flask_session
+sessions
+tests
