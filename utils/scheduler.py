@@ -341,14 +341,10 @@ class Scheduler:
     def _get_task_types(self, task):
         """Получить типы задач для этой задачи"""
         task_type_objects = []
-        session = db_manager.get_session()
-        try:
-            for type_id in task['task_types']:
-                task_type_obj = db_manager.get_task_type_by_id(type_id)
-                if task_type_obj:
-                    task_type_objects.append(task_type_obj)
-        finally:
-            session.close()
+        for type_id in task['task_types']:
+            task_type_obj = db_manager.get_task_type_by_id(type_id)
+            if task_type_obj:
+                task_type_objects.append(task_type_obj)
         
         return task_type_objects
     

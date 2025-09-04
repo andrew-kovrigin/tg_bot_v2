@@ -86,12 +86,24 @@ class SecurityManager:
         logger.debug(f"CSRF token validation result: {result}")
         return result
 
+def request_is_json():
+    """Проверяет, является ли запрос API запросом (ожидает JSON ответ)"""
+    return (
+        request.headers.get('Content-Type') == 'application/json' or
+        request.headers.get('Accept') == 'application/json' or
+        request.path.startswith('/api/')
+    )
+
 def csrf_protect(f):
     """Декоратор для защиты от CSRF атак"""
     @wraps(f)
     def decorated_function(*args, **kwargs):
         # Для GET запросов не проверяем CSRF
         if request.method in ['GET', 'HEAD', 'OPTIONS', 'TRACE']:
+            return f(*args, **kwargs)
+        
+        # Для API запросов не проверяем CSRF токен
+        if request_is_json():
             return f(*args, **kwargs)
         
         # Получаем токен из формы или заголовка

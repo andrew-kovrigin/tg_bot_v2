@@ -118,7 +118,17 @@ class DatabaseManager:
                     existing_group.name = name
                     existing_group.addresses = json.dumps(addresses)
                     existing_group.is_active = True  # Активируем, если была неактивна
-                    session.flush()  # Принудительно записываем в БД, но не коммитим транзакцию
+                    session.commit()  # Коммитим транзакцию
+                    session.refresh(existing_group)  # Обновляем состояние объекта
+                    # Принудительно загружаем атрибуты, чтобы они были доступны после закрытия сессии
+                    _ = existing_group.id
+                    _ = existing_group.group_id
+                    _ = existing_group.name
+                    _ = existing_group.addresses
+                    _ = existing_group.is_active
+                    _ = existing_group.created_at
+                    # Отсоединяем объект от сессии
+                    session.expunge(existing_group)
                     logger.info(f"Обновлена существующая группа: {name} ({group_id})")
                     return existing_group
                 else:
@@ -126,7 +136,17 @@ class DatabaseManager:
                     addresses_json = json.dumps(addresses)
                     group = Group(group_id=group_id, name=name, addresses=addresses_json)
                     session.add(group)
-                    session.flush()  # Принудительно записываем в БД, но не коммитим транзакцию
+                    session.commit()  # Коммитим транзакцию
+                    session.refresh(group)  # Обновляем состояние объекта
+                    # Принудительно загружаем атрибуты, чтобы они были доступны после закрытия сессии
+                    _ = group.id
+                    _ = group.group_id
+                    _ = group.name
+                    _ = group.addresses
+                    _ = group.is_active
+                    _ = group.created_at
+                    # Отсоединяем объект от сессии
+                    session.expunge(group)
                     logger.info(f"Добавлена новая группа: {name} ({group_id})")
                     return group
             except SQLAlchemyError as e:
@@ -137,7 +157,21 @@ class DatabaseManager:
         """Получение всех групп"""
         with self.session_manager as session:
             try:
-                return session.query(Group).filter(Group.is_active == True).all()
+                groups = session.query(Group).filter(Group.is_active == True).all()
+                # Принудительно загружаем атрибуты для каждой группы
+                result = []
+                for group in groups:
+                    # Принудительно загружаем атрибуты, чтобы они были доступны после закрытия сессии
+                    _ = group.id
+                    _ = group.group_id
+                    _ = group.name
+                    _ = group.addresses
+                    _ = group.is_active
+                    _ = group.created_at
+                    # Отсоединяем объект от сессии
+                    session.expunge(group)
+                    result.append(group)
+                return result
             except SQLAlchemyError as e:
                 logger.error(f"Ошибка при получении списка групп: {e}")
                 raise
@@ -146,12 +180,24 @@ class DatabaseManager:
         """Получение группы по ID"""
         with self.session_manager as session:
             try:
-                return session.query(Group).filter(
+                group = session.query(Group).filter(
                     and_(
                         Group.group_id == group_id,
                         Group.is_active == True
                     )
                 ).first()
+                # If group is found, load all attributes within the current session
+                if group:
+                    # Force load attributes so they're available after session close
+                    _ = group.id
+                    _ = group.group_id
+                    _ = group.name
+                    _ = group.addresses
+                    _ = group.is_active
+                    _ = group.created_at
+                    # Expunge the object from the session
+                    session.expunge(group)
+                return group
             except SQLAlchemyError as e:
                 logger.error(f"Ошибка при получении группы {group_id}: {e}")
                 raise
@@ -160,12 +206,26 @@ class DatabaseManager:
         """Получение групп по списку ID"""
         with self.session_manager as session:
             try:
-                return session.query(Group).filter(
+                groups = session.query(Group).filter(
                     and_(
                         Group.id.in_(group_ids),
                         Group.is_active == True
                     )
                 ).all()
+                # Принудительно загружаем атрибуты для каждой группы
+                result = []
+                for group in groups:
+                    # Принудительно загружаем атрибуты, чтобы они были доступны после закрытия сессии
+                    _ = group.id
+                    _ = group.group_id
+                    _ = group.name
+                    _ = group.addresses
+                    _ = group.is_active
+                    _ = group.created_at
+                    # Отсоединяем объект от сессии
+                    session.expunge(group)
+                    result.append(group)
+                return result
             except SQLAlchemyError as e:
                 logger.error(f"Ошибка при получении групп по списку ID: {e}")
                 raise
@@ -243,6 +303,21 @@ class DatabaseManager:
                     existing_outage = session.query(Outage).filter(Outage.content_hash == content_hash).first()
                     if existing_outage:
                         logger.info(f"Отключение уже существует в базе данных (хэш: {content_hash[:8]}...)")
+                        # Принудительно загружаем атрибуты, чтобы они были доступны после закрытия сессии
+                        _ = existing_outage.id
+                        _ = existing_outage.district
+                        _ = existing_outage.resource
+                        _ = existing_outage.organization
+                        _ = existing_outage.phone
+                        _ = existing_outage.addresses
+                        _ = existing_outage.reason
+                        _ = existing_outage.start_time
+                        _ = existing_outage.end_time
+                        _ = existing_outage.created_at
+                        _ = existing_outage.notified
+                        _ = existing_outage.content_hash
+                        # Отсоединяем объект от сессии
+                        session.expunge(existing_outage)
                         outages.append(existing_outage)
                         existing_outages_count += 1
                         continue
@@ -260,6 +335,21 @@ class DatabaseManager:
                         content_hash=content_hash
                     )
                     session.add(outage)
+                    # Принудительно загружаем атрибуты, чтобы они были доступны после закрытия сессии
+                    _ = outage.id
+                    _ = outage.district
+                    _ = outage.resource
+                    _ = outage.organization
+                    _ = outage.phone
+                    _ = outage.addresses
+                    _ = outage.reason
+                    _ = outage.start_time
+                    _ = outage.end_time
+                    _ = outage.created_at
+                    _ = outage.notified
+                    _ = outage.content_hash
+                    # Отсоединяем объект от сессии
+                    session.expunge(outage)
                     outages.append(outage)
                     new_outages_count += 1
                 
@@ -276,7 +366,27 @@ class DatabaseManager:
         """Получение нотифицированных отключений"""
         with self.session_manager as session:
             try:
-                return session.query(Outage).filter(Outage.notified == False).all()
+                outages = session.query(Outage).filter(Outage.notified == False).all()
+                # Принудительно загружаем атрибуты для каждого отключения
+                result = []
+                for outage in outages:
+                    # Принудительно загружаем атрибуты, чтобы они были доступны после закрытия сессии
+                    _ = outage.id
+                    _ = outage.district
+                    _ = outage.resource
+                    _ = outage.organization
+                    _ = outage.phone
+                    _ = outage.addresses
+                    _ = outage.reason
+                    _ = outage.start_time
+                    _ = outage.end_time
+                    _ = outage.created_at
+                    _ = outage.notified
+                    _ = outage.content_hash
+                    # Отсоединяем объект от сессии
+                    session.expunge(outage)
+                    result.append(outage)
+                return result
             except SQLAlchemyError as e:
                 logger.error(f"Ошибка при получении нотифицированных отключений: {e}")
                 raise
@@ -285,7 +395,27 @@ class DatabaseManager:
         """Получение последних отключений"""
         with self.session_manager as session:
             try:
-                return session.query(Outage).order_by(desc(Outage.created_at)).limit(limit).all()
+                outages = session.query(Outage).order_by(desc(Outage.created_at)).limit(limit).all()
+                # Принудительно загружаем атрибуты для каждого отключения
+                result = []
+                for outage in outages:
+                    # Принудительно загружаем атрибуты, чтобы они были доступны после закрытия сессии
+                    _ = outage.id
+                    _ = outage.district
+                    _ = outage.resource
+                    _ = outage.organization
+                    _ = outage.phone
+                    _ = outage.addresses
+                    _ = outage.reason
+                    _ = outage.start_time
+                    _ = outage.end_time
+                    _ = outage.created_at
+                    _ = outage.notified
+                    _ = outage.content_hash
+                    # Отсоединяем объект от сессии
+                    session.expunge(outage)
+                    result.append(outage)
+                return result
             except SQLAlchemyError as e:
                 logger.error(f"Ошибка при получении последних отключений: {e}")
                 raise
@@ -294,12 +424,32 @@ class DatabaseManager:
         """Получение отключений в заданном диапазоне дат"""
         with self.session_manager as session:
             try:
-                return session.query(Outage).filter(
+                outages = session.query(Outage).filter(
                     and_(
                         Outage.created_at >= start_date,
                         Outage.created_at <= end_date
                     )
                 ).all()
+                # Принудительно загружаем атрибуты для каждого отключения
+                result = []
+                for outage in outages:
+                    # Принудительно загружаем атрибуты, чтобы они были доступны после закрытия сессии
+                    _ = outage.id
+                    _ = outage.district
+                    _ = outage.resource
+                    _ = outage.organization
+                    _ = outage.phone
+                    _ = outage.addresses
+                    _ = outage.reason
+                    _ = outage.start_time
+                    _ = outage.end_time
+                    _ = outage.created_at
+                    _ = outage.notified
+                    _ = outage.content_hash
+                    # Отсоединяем объект от сессии
+                    session.expunge(outage)
+                    result.append(outage)
+                return result
             except SQLAlchemyError as e:
                 logger.error(f"Ошибка при получении отключений в диапазоне дат: {e}")
                 raise
@@ -435,7 +585,17 @@ class DatabaseManager:
         """Получение типа задачи по ID"""
         with self.session_manager as session:
             try:
-                return session.query(TaskTypeDefinition).filter(TaskTypeDefinition.id == type_id).first()
+                task_type = session.query(TaskTypeDefinition).filter(TaskTypeDefinition.id == type_id).first()
+                # If task type is found, load all attributes within the current session
+                if task_type:
+                    # Force load attributes so they're available after session close
+                    _ = task_type.id
+                    _ = task_type.name
+                    _ = task_type.display_name
+                    _ = task_type.description
+                    # Expunge the object from the session
+                    session.expunge(task_type)
+                return task_type
             except SQLAlchemyError as e:
                 logger.error(f"Ошибка при получении типа задачи с ID {type_id}: {e}")
                 raise
@@ -504,7 +664,20 @@ class DatabaseManager:
                     # Загружаем связанные группы
                     session.flush()  # Принудительно записываем в БД, но не коммитим транзакцию
                     logger.info(f"Получено {len(task.groups)} групп для задачи с ID {task_id}")
-                    return task.groups
+                    # Принудительно загружаем атрибуты для каждой группы
+                    result = []
+                    for group in task.groups:
+                        # Принудительно загружаем атрибуты, чтобы они были доступны после закрытия сессии
+                        _ = group.id
+                        _ = group.group_id
+                        _ = group.name
+                        _ = group.addresses
+                        _ = group.is_active
+                        _ = group.created_at
+                        # Отсоединяем объект от сессии
+                        session.expunge(group)
+                        result.append(group)
+                    return result
                 logger.warning(f"Задача с ID {task_id} не найдена")
                 return []
             except SQLAlchemyError as e:
