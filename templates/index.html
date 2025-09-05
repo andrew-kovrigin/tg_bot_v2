@@ -8,7 +8,7 @@
 
 <!-- Статистика -->
 <div class="row mb-4">
-    <div class="col-md-4">
+    <div class="col-md-3">
         <div class="stats-card groups">
             <div class="icon">
                 <i class="bi bi-people-fill"></i>
@@ -17,7 +17,7 @@
             <p>Активных групп</p>
         </div>
     </div>
-    <div class="col-md-4">
+    <div class="col-md-3">
         <div class="stats-card outages">
             <div class="icon">
                 <i class="bi bi-lightning-charge-fill"></i>
@@ -26,13 +26,22 @@
             <p>Записей об отключениях</p>
         </div>
     </div>
-    <div class="col-md-4">
+    <div class="col-md-3">
         <div class="stats-card notifications">
             <div class="icon">
                 <i class="bi bi-bell-fill"></i>
             </div>
             <h3>{{ stats.notifications_count }}</h3>
             <p>Отправленных уведомлений</p>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stats-card" style="background: linear-gradient(135deg, #f72585, #7209b7);">
+            <div class="icon">
+                <i class="bi bi-shield-check"></i>
+            </div>
+            <h3>{{ stats.duplicates_prevented }}</h3>
+            <p>Предотвращено дубликатов</p>
         </div>
     </div>
 </div>

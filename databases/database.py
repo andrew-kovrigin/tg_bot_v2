@@ -82,41 +82,54 @@ class DatabaseSessionManager:
         try:
             if exc_type is not None:
                 # Если возникло исключение, откатываем транзакцию
-                self.session.rollback()
-                logger.warning(f"Транзакция откачена из-за исключения: {exc_val}")
+                try:
+                    self.session.rollback()
+                    logger.warning(f"Транзакция откачена из-за исключения: {exc_val}")
+                except Exception as rollback_error:
+                    logger.error(f"Ошибка при откате транзакции: {rollback_error}")
             else:
                 # Если исключения не было, коммитим транзакцию
                 # Проверяем, что сессия еще не закрыта и не находится в процессе завершения
-                if hasattr(self.session, 'is_active') and self.session.is_active:
+                try:
+                    # Проверяем состояние сессии перед коммитом
+                    if hasattr(self.session, 'is_active') and self.session.is_active:
+                        # Проверяем, есть ли незавершенные транзакции
+                        if not hasattr(self.session, '_transaction') or self.session._transaction is None or \
+                           (hasattr(self.session._transaction, 'is_active') and self.session._transaction.is_active):
+                            self.session.commit()
+                        else:
+                            logger.debug("Нет активной транзакции для коммита")
+                    else:
+                        logger.debug("Сессия уже неактивна, коммит пропущен")
+                except SQLAlchemyError as commit_error:
+                    logger.error(f"Ошибка при коммите транзакции: {commit_error}")
                     try:
-                        self.session.commit()
-                    except SQLAlchemyError as commit_error:
-                        logger.error(f"Ошибка при коммите транзакции: {commit_error}")
                         self.session.rollback()
-                        raise
-                else:
-                    logger.debug("Сессия уже неактивна, коммит пропущен")
+                    except Exception as rollback_error:
+                        logger.error(f"Ошибка при откате транзакции: {rollback_error}")
+                    raise
         except SQLAlchemyError as e:
             logger.error(f"Ошибка при завершении сессии: {e}")
-            if hasattr(self.session, 'is_active') and self.session.is_active:
-                try:
+            try:
+                if hasattr(self.session, 'is_active') and self.session.is_active:
                     self.session.rollback()
-                except Exception as rollback_error:
-                    logger.error(f"Ошибка при откате транзакции: {rollback_error}")
+            except Exception as rollback_error:
+                logger.error(f"Ошибка при откате транзакции: {rollback_error}")
+            raise
+        except Exception as e:
+            logger.error(f"Неожиданная ошибка при завершении сессии: {e}")
+            try:
+                if hasattr(self.session, 'is_active') and self.session.is_active:
+                    self.session.rollback()
+            except Exception as rollback_error:
+                logger.error(f"Ошибка при откате транзакции: {rollback_error}")
             raise
         finally:
-            # Всегда закрываем сессию, если она еще не закрыта
-            if hasattr(self.session, 'is_active') and self.session.is_active:
-                try:
-                    self.session.close()
-                except Exception as close_error:
-                    logger.error(f"Ошибка при закрытии сессии: {close_error}")
-            elif hasattr(self.session, 'close'):
-                # Пробуем закрыть сессию, если метод доступен
-                try:
-                    self.session.close()
-                except Exception as close_error:
-                    logger.warning(f"Ошибка при закрытии сессии: {close_error}")
+            # Всегда закрываем сессию
+            try:
+                self.session.close()
+            except Exception as close_error:
+                logger.warning(f"Ошибка при закрытии сессии: {close_error}")
         
         return False  # Не подавляем исключения
 

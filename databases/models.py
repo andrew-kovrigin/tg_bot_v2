@@ -75,7 +75,7 @@ class TaskTypeDefinition(Base):
     __tablename__ = 'task_type_definitions'
     
     id = Column(Integer, primary_key=True)
-    name = Column(String(50), unique=True, nullable=False, index=True)  # Имя типа (outages_check, holidays_check, weather_check, aggregated_report)
+    name = Column(String(50), unique=True, nullable=False, index=True)  # Имя типа (outages_check, holidays_check, weather_check)
     display_name = Column(String(100), nullable=False)  # Отображаемое имя
     description = Column(Text)  # Описание
     

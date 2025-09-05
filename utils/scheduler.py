@@ -26,7 +26,7 @@ class Scheduler:
         self.bot = Bot(token=TELEGRAM_TOKEN)
     
     async def execute_task(self, task):
-        """Выполнение задачи с агрегированными уведомлениями"""
+        """Выполнение задачи"""
         try:
             logger.info(f"=== НАЧАЛО ВЫПОЛНЕНИЯ ЗАДАЧИ: {task['name']} (ID: {task['id']}) ===")
             
@@ -46,11 +46,8 @@ class Scheduler:
             # Подготовка сообщений
             messages = self._prepare_messages(groups, outages_data)
             
-            # Проверяем, является ли это задачей агрегированного отчета
-            is_aggregated_task = any(task_type_obj.name == 'aggregated_report' for task_type_obj in task_type_objects)
-            
             # Отправка уведомлений
-            await self._send_notifications(groups, messages, is_aggregated_task, outages_data)
+            await self._send_notifications(groups, messages, outages_data)
             
             # Обновляем время последнего запуска задачи
             self._update_task_last_run_time(task)
@@ -60,44 +57,6 @@ class Scheduler:
         except Exception as e:
             logger.error(f"Критическая ошибка при выполнении задачи {task['name']}: {e}", exc_info=True)
     
-    def _format_aggregated_message(self, messages, is_aggregated_task=False):
-        """Форматирование агрегированного сообщения"""
-        if not messages:
-            return "Нет данных для уведомления."
-        
-        # Объединяем все сообщения в одно
-        if is_aggregated_task:
-            combined_message = "<b>Агрегированный отчет:</b>\n\n"
-        else:
-            combined_message = "<b>Агрегированные уведомления:</b>\n\n"
-        
-        # Группируем сообщения по типам
-        message_groups = {'outage': []}
-        for msg in messages:
-            message_groups[msg['type']].append(msg)
-        
-        # Обрабатываем каждый тип сообщений
-        for msg_type, msg_group in message_groups.items():
-            if not msg_group:
-                continue
-                
-            if msg_type == 'outage':
-                combined_message += "<b>⚠️ Отключения коммунальных услуг:</b>\n"
-                # Извлекаем содержимое без заголовка
-                outage_content = msg_group[0]['content']
-                # Удаляем заголовок из контента если он есть
-                if outage_content.startswith("<b>⚠️ Обнаружены отключения коммунальных услуг:</b>"):
-                    outage_content = outage_content[len("<b>⚠️ Обнаружены отключения коммунальных услуг:</b>"):]
-                # Убираем ведущие символы новой строки
-                outage_content = outage_content.lstrip('\n')
-                if outage_content.strip():
-                    combined_message += outage_content + '\n'
-        
-        # Проверяем длину сообщения
-        if len(combined_message) > 4000:
-            combined_message = combined_message[:3900] + "\n\n... (сообщение сокращено)"
-        
-        return combined_message
     
     def _format_outages_message(self, outages, group=None):
         """Форматирование сообщения об отключениях"""
@@ -350,16 +309,19 @@ class Scheduler:
     
     def _update_task_last_run_time(self, task):
         """Обновить время последнего запуска задачи"""
-        session = db_manager.get_session()
-        try:
-            from databases.models import ScheduledTask
-            task_obj = session.query(ScheduledTask).filter(ScheduledTask.id == task['id']).first()
-            if task_obj:
-                task_obj.last_run = datetime.utcnow()
-                session.commit()
-                logger.info(f"Время последнего запуска задачи {task['name']} обновлено")
-        finally:
-            session.close()
+        # Используем контекстный менеджер сессии из менеджера задач
+        with db_manager.task_manager.session_manager as session:
+            try:
+                from databases.models import ScheduledTask
+                task_obj = session.query(ScheduledTask).filter(ScheduledTask.id == task['id']).first()
+                if task_obj:
+                    task_obj.last_run = datetime.utcnow()
+                    session.commit()
+                    logger.info(f"Время последнего запуска задачи {task['name']} обновлено")
+            except Exception as e:
+                logger.error(f"Ошибка при обновлении времени последнего запуска задачи {task['name']}: {e}")
+                # Исключение будет перехвачено и записано в вызывающем коде
+                raise
 
     def _collect_task_outages(self, task_type_objects):
         """Сбор данных об отключениях для задачи"""
@@ -369,10 +331,6 @@ class Scheduler:
             logger.info(f"Выполнение типа задачи: {task_type_name}")
             
             if task_type_name == 'outages_check':
-                outages_data = self._collect_outages_data()
-            
-            elif task_type_name == 'aggregated_report':
-                # Для агрегированного отчета мы собираем все данные сразу
                 outages_data = self._collect_outages_data()
         
         return outages_data
@@ -399,43 +357,11 @@ class Scheduler:
                 logger.info("Нет новых отключений для уведомления")
         return messages
 
-    async def _send_notifications(self, groups, messages, is_aggregated_task, outages_data):
+    async def _send_notifications(self, groups, messages, outages_data):
         """Отправка уведомлений"""
-        if is_aggregated_task:
-            # Для агрегированного отчета отправляем одно сообщение для всех групп
-            try:
-                # Формируем агрегированное сообщение
-                aggregated_message = self._format_aggregated_message(messages, is_aggregated_task=True)
-                
-                # Отправляем в каждую группу
-                sent_count = 0
-                error_count = 0
-                for group in groups:
-                    try:
-                        await self.bot.send_message(chat_id=group.group_id, text=aggregated_message, parse_mode="HTML")
-                        logger.info(f"Отправлен агрегированный отчет в группу {group.group_id}")
-                        
-                        # Записываем в историю уведомлений
-                        self._add_notification_to_history(
-                            event_type="aggregated",
-                            event_id=1,
-                            group_id=group.group_id,
-                            message=aggregated_message
-                        )
-                        sent_count += 1
-                    except Exception as e:
-                        logger.error(f"Ошибка при отправке уведомления в группу {group.group_id}: {e}")
-                        error_count += 1
-                
-                logger.info(f"Агрегированный отчет отправлен. Успешно: {sent_count}, Ошибок: {error_count}")
-                
-                # Помечаем отключения как нотифицированные (если были отключения)
-                self._mark_outages_as_notified(outages_data)
-            except Exception as e:
-                logger.error(f"Ошибка при формировании агрегированного отчета: {e}")
-        elif messages:
+        if messages:
             # Отправляем обычные уведомления
-            logger.info(f"Отправка агрегированных уведомлений")
+            logger.info(f"Отправка уведомлений")
             sent_count = 0
             error_count = 0
             
@@ -447,28 +373,34 @@ class Scheduler:
                     grouped_messages[group_id] = []
                 grouped_messages[group_id].append(msg)
             
-            # Отправляем агрегированное сообщение для каждой группы
+            # Отправляем сообщение для каждой группы
             for group_id, group_messages in grouped_messages.items():
                 try:
-                    # Формируем агрегированное сообщение для группы
-                    aggregated_message = self._format_aggregated_message(group_messages, is_aggregated_task=False)
+                    # Объединяем все сообщения для группы в одно
+                    combined_message = ""
+                    for msg in group_messages:
+                        combined_message += msg['content'] + "\n\n"
                     
-                    await self.bot.send_message(chat_id=group_id, text=aggregated_message, parse_mode="HTML")
-                    logger.info(f"Отправлено агрегированное уведомление в группу {group_id}")
+                    # Проверяем длину сообщения
+                    if len(combined_message) > 4000:
+                        combined_message = combined_message[:3900] + "\n\n... (сообщение сокращено)"
+                    
+                    await self.bot.send_message(chat_id=group_id, text=combined_message, parse_mode="HTML")
+                    logger.info(f"Отправлено уведомление в группу {group_id}")
                     
                     # Записываем в историю уведомлений (одна запись на группу)
                     self._add_notification_to_history(
-                        event_type="aggregated",
+                        event_type="outage",
                         event_id=1,
                         group_id=group_id,
-                        message=aggregated_message
+                        message=combined_message
                     )
                     sent_count += 1
                 except Exception as e:
                     logger.error(f"Ошибка при отправке уведомления в группу {group_id}: {e}")
                     error_count += 1
             
-            logger.info(f"Агрегированные уведомления отправлены. Успешно: {sent_count}, Ошибок: {error_count}")
+            logger.info(f"Уведомления отправлены. Успешно: {sent_count}, Ошибок: {error_count}")
             
             # Помечаем отключения как нотифицированные (если были отключения)
             self._mark_outages_as_notified(outages_data)

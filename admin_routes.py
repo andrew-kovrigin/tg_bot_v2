@@ -78,20 +78,21 @@ def index():
     """Главная страница админки"""
     try:
         # Получаем статистику для отображения на главной странице
-        groups_count = len(db_manager.get_all_groups())
-        outages_count = len(db_manager.get_recent_outages(1000))
-        notifications_count = len(db_manager.get_notifications(1000))
+        system_stats = db_manager.get_system_stats()
+        duplicate_stats = db_manager.get_duplicate_stats()
         
         stats = {
-            'groups_count': groups_count,
-            'outages_count': outages_count,
-            'notifications_count': notifications_count
+            'groups_count': system_stats.get('counts', {}).get('groups', 0),
+            'outages_count': system_stats.get('counts', {}).get('outages', 0),
+            'notifications_count': system_stats.get('counts', {}).get('notifications', 0),
+            'duplicates_prevented': duplicate_stats.get('duplicates_prevented', 0),
+            'duplicate_percentage': duplicate_stats.get('duplicate_percentage', 0)
         }
         
         return render_template('index.html', stats=stats)
     except Exception as e:
         logger.error(f"Ошибка при получении статистики для главной страницы: {e}")
-        return render_template('index.html', stats={'groups_count': 0, 'outages_count': 0, 'notifications_count': 0})
+        return render_template('index.html', stats={'groups_count': 0, 'outages_count': 0, 'notifications_count': 0, 'duplicates_prevented': 0, 'duplicate_percentage': 0})
 
 # Маршрут для страницы дубликатов
 @admin_bp.route('/duplicate_prevention')

@@ -1,6 +1,7 @@
 import os
 from flask import Flask
 from data.flask_config import config
+from data.config import FLASK_PORT
 from flask_session import Session
 from flask_session.sessions import FileSystemSessionInterface
 import secrets
@@ -135,4 +136,4 @@ def create_app(config_name=None):
 
 if __name__ == '__main__':
     app = create_app()
-    app.run(debug=True)
+    app.run(debug=True, port=FLASK_PORT)

@@ -32,4 +32,7 @@ HOLIDAYS_CHECK_INTERVAL_DAYS = int(os.getenv('HOLIDAYS_CHECK_INTERVAL_DAYS', '1'
 WEATHER_CHECK_INTERVAL_MINUTES = int(os.getenv('WEATHER_CHECK_INTERVAL_MINUTES', '60'))
 
 # URL админ-панели
-ADMIN_PANEL_URL = os.getenv('ADMIN_PANEL_URL', 'http://localhost:5000')
+ADMIN_PANEL_URL = os.getenv('ADMIN_PANEL_URL', 'http://localhost:80')
+
+# Порт для Flask приложения
+FLASK_PORT = int(os.getenv('FLASK_PORT', '80'))

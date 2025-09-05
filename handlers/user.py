@@ -79,92 +79,7 @@ async def cmd_outages(message: types.Message):
 
 async def cmd_stats(message: types.Message):
     """Обработчик команды /stats"""
-    try:
-        # Получаем последние отключения для статистики
-        recent_outages = db_manager.get_recent_outages(100)
-        
-        if not recent_outages:
-            await message.answer("На данный момент нет данных для статистики.")
-            return
-        
-        # Собираем статистику
-        total_outages = len(recent_outages)
-        resources = {}
-        districts = {}
-        
-        for outage in recent_outages:
-            # Статистика по ресурсам
-            resource = outage.resource or "Не указан"
-            resources[resource] = resources.get(resource, 0) + 1
-            
-            # Статистика по районам
-            district = outage.district or "Не указан"
-            districts[district] = districts.get(district, 0) + 1
-        
-        # Формируем сообщение
-        response = "📊 *Статистика отключений:*\n\n"
-        response += f"📈 *Всего отключений:* {total_outages}\n\n"
-        
-        response += "💡 *По ресурсам:*\n"
-        for resource, count in sorted(resources.items(), key=lambda x: x[1], reverse=True)[:5]:
-            response += f"  {resource}: {count}\n"
-        
-        response += "\n🏢 *По районам:*\n"
-        for district, count in sorted(districts.items(), key=lambda x: x[1], reverse=True)[:5]:
-            response += f"  {district}: {count}\n"
-        
-        await message.answer(response, parse_mode="Markdown")
-    except Exception as e:
-        await message.answer(f"Ошибка при получении статистики: {str(e)}")
-
-async def cmd_recent(message: types.Message):
-   """Обработчик команды /recent"""
-   try:
-       # Получаем последние отключения (не обязательно нотифицированные)
-       recent_outages = db_manager.get_recent_outages(10)  # Получаем последние 10 отключений
-       
-       if not recent_outages:
-           await message.answer("На данный момент нет недавних отключений.")
-           return
-       
-       # Формируем сообщение
-       response = f"🕒 *Последние отключения* ({len(recent_outages)} шт.):\n\n"
-       
-       for outage in recent_outages:
-           # Парсим адреса
-           try:
-               addresses = json.loads(outage.addresses) if outage.addresses else []
-               addresses_text = ""
-               if addresses:
-                   addresses_parts = []
-                   for addr in addresses:
-                       street = addr.get('street', '')
-                       houses = addr.get('houses', [])
-                       if houses:
-                           addresses_parts.append(f"{street} ({', '.join(houses)})")
-                       else:
-                           addresses_parts.append(street)
-                   addresses_text = "; ".join(addresses_parts)
-           except:
-               addresses_text = outage.addresses or ""
-           
-           response += f"🏢 *Район:* {outage.district}\n"
-           response += f"💡 *Ресурс:* {outage.resource}\n"
-           if outage.organization:
-               response += f"🏢 *Организация:* {outage.organization}\n"
-           if outage.phone:
-               response += f"📞 *Телефон:* {outage.phone}\n"
-           if addresses_text:
-               response += f"📍 *Адреса:* {addresses_text}\n"
-           if outage.reason:
-               response += f"📝 *Причина:* {outage.reason}\n"
-           if outage.start_time and outage.end_time:
-               response += f"⏰ *Время:* {outage.start_time} - {outage.end_time}\n"
-           response += "\n"
-       
-       await message.answer(response, parse_mode="Markdown")
-   except Exception as e:
-       await message.answer(f"Ошибка при получении последних отключений: {str(e)}")
+    await message.answer("Статистика временно недоступна.")
 
 async def on_bot_added_to_group(message: types.Message):
     """Обработчик события добавления бота в группу"""
@@ -189,7 +104,7 @@ async def on_bot_added_to_group(message: types.Message):
                     # Отправляем информацию в админку для автоматического добавления группы
                     try:
                         from data.config import ADMIN_PANEL_URL
-                        admin_url = ADMIN_PANEL_URL or "http://localhost:5000"
+                        admin_url = ADMIN_PANEL_URL or "http://localhost:80"
                         response = requests.post(
                             f"{admin_url}/api/add_group_from_telegram",
                             json={

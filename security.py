@@ -76,12 +76,17 @@ class SecurityManager:
         session_token = session['csrf_token']
         logger.debug(f"Session token type: {type(session_token)}, Request token type: {type(token)}")
         
+        # Log the actual values for debugging
+        logger.debug(f"Session token value: {repr(session_token)}")
+        logger.debug(f"Request token value: {repr(token)}")
+        
         if isinstance(session_token, bytes):
             session_token = session_token.decode('utf-8')
         if isinstance(token, bytes):
             token = token.decode('utf-8')
             
         logger.debug(f"Comparing tokens. Session: {session_token}, Request: {token}")
+        logger.debug(f"Tokens equal: {session_token == token}")
         result = secrets.compare_digest(session_token, token)
         logger.debug(f"CSRF token validation result: {result}")
         return result
